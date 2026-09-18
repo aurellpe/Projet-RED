@@ -14,7 +14,7 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "Mon premier jeu")
+	ebitenutil.DebugPrint(screen, "yael adam aurel")
 }
 
 func (g *Game) Layout(width, height int) (int, int) {
