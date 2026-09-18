@@ -29,13 +29,6 @@ func displayInfo(perso structure.Personnage) {
 }
 
 func main() {
-
-	inventaire := []string{
-		"Potion de vie",
-		"Potion de vie",
-		"Potion de vie",
-	}
-
 	perso := initCharacter(
 		"DE Bergerac",
 		"Dartagnan",
