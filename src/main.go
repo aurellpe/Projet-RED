@@ -5,7 +5,6 @@ import (
 	"main/structure"
 )
 
-// Tâche 2 : création du personnage
 func initCharacter(nom string, prenom string, age int, classe string, niveau int, pointsDeVieMaximum int, pointsDeVieActuels int, inventaire []string) structure.Personnage {
 	return structure.Personnage{
 		Nom:                 nom,
