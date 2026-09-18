@@ -1,8 +1,11 @@
 package structure
 
-import "fmt"
+type Item struct {
+	Nom string
+	Quantity int 
+}
 
-type Personnage struct {
+type Character struct {
 	Nom                 string
 	Prenom              string
 	Age                 int
@@ -10,5 +13,5 @@ type Personnage struct {
 	Niveau              int
 	PointsDeVieMaximum  int
 	PointsDeVieActuels  int
-	Inventaire          []string
+	Inventaire          []Item
 }

@@ -5,8 +5,10 @@ import (
 	"main/structure"
 )
 
-func initCharacter(nom string, prenom string, age int, classe string, niveau int, pointsDeVieMaximum int, pointsDeVieActuels int, inventaire []string) structure.Personnage {
-	return structure.Personnage{
+
+
+func initCharacter(nom string, prenom string, age int, classe string, niveau int, pointsDeVieMaximum int, pointsDeVieActuels int, inventaire []structure.Item) structure.Character {
+	return structure.Character{
 		Nom:                 nom,
 		Prenom:              prenom,
 		Age:                 age,
@@ -18,7 +20,7 @@ func initCharacter(nom string, prenom string, age int, classe string, niveau int
 	}
 }
 
-func displayInfo(perso structure.Personnage) {
+func displayInfo(perso structure.Character) {
 	fmt.Println("===== PERSONNAGE =====")
 	fmt.Println("Nom :", perso.Nom)
 	fmt.Println("Prénom :", perso.Prenom)
@@ -28,7 +30,7 @@ func displayInfo(perso structure.Personnage) {
 	fmt.Println("Points de vie :", perso.PointsDeVieActuels, "/", perso.PointsDeVieMaximum)
 }
 
-func accessInventory(perso structure.Personnage) {
+func accessInventory(perso structure.Character) {
 	fmt.Println("===== INVENTAIRE =====")
 
 	if len(perso.Inventaire) == 0 {
@@ -43,18 +45,17 @@ func accessInventory(perso structure.Personnage) {
 
 func main() {
 
-	inventaire := []string{
-	}
+	
 
 	perso := initCharacter(
 		"DE Bergerac",
 		"Dartagnan",
 		26,
-		"Elfe",
+		"Légionnaire",
 		1,
-		100,
-		40,
-		inventaire,
+		10000,
+		150,
+		[]structure.Item{{Nom : "potion", Quantity : 0}, {Nom : "epee", Quantity : 1}},
 	)
 
 	displayInfo(perso)
@@ -62,4 +63,26 @@ func main() {
 	fmt.Println()
 
 	accessInventory(perso)
+}
+
+	
+
+func takePot( p structure.Character){
+	for i, it := range p.Inventaire {
+		if it.Nom == "potion" && it.Quantity > 0 {
+			p.PointsDeVieActuels +=50
+			if p.PointsDeVieActuels > p.PointsDeVieMaximum {
+				p.PointsDeVieActuels = p.PointsDeVieMaximum
+			}
+			p.Inventaire[i].Quantity--
+			
+			if p.Inventaire[i].Quantity == 0 {
+				p.Inventaire = append(p.Inventaire[:i], p.Inventaire[i+1:]...)
+			}
+			return
+
+	
+
+		}
+	}
 }

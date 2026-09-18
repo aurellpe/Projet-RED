@@ -1,8 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt";
+	"main/structure"
+)
 
-func menu(player *Character) {
+func menu(player *structure.Character) {
 	for {
 		fmt.Println("\n===== MENU =====")
 		fmt.Println("1 - Afficher les informations du personnage")
@@ -16,7 +19,7 @@ func menu(player *Character) {
 		switch choice {
 
 		case 1:
-			displayInfo(player)
+			displayInfo(*player)
 
 			fmt.Println("\n0 - Retour")
 
@@ -28,7 +31,7 @@ func menu(player *Character) {
 			}
 
 		case 2:
-			accessInventory(player)
+			accessInventory(*player)
 
 			fmt.Println("\n0 - Retour")
 
