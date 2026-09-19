@@ -42,8 +42,7 @@ func NewMusicManager(context *audio.Context) *MusicManager {
 		Volume:       0.20,
 	}
 
-	manager.LevelPlayer.SetVolume(manager.Volume)
-	manager.BossPlayer.SetVolume(manager.Volume)
+	manager.SetVolume(manager.Volume)
 
 	return manager
 }
@@ -62,6 +61,26 @@ func newLoopingMusicPlayer(context *audio.Context, data []byte) *audio.Player {
 	}
 
 	return player
+}
+
+func (m *MusicManager) SetVolume(volume float64) {
+	if volume < 0 {
+		volume = 0
+	}
+
+	if volume > 1 {
+		volume = 1
+	}
+
+	m.Volume = volume
+
+	if m.LevelPlayer != nil {
+		m.LevelPlayer.SetVolume(m.Volume)
+	}
+
+	if m.BossPlayer != nil {
+		m.BossPlayer.SetVolume(m.Volume)
+	}
 }
 
 func (m *MusicManager) PlayLevel() {
@@ -95,7 +114,7 @@ func (m *MusicManager) playTrack(player *audio.Player, track int) {
 
 	if m.CurrentTrack != track {
 		if err := player.Rewind(); err != nil {
-			panic(err)
+			return
 		}
 	}
 

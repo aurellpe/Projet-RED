@@ -4,14 +4,24 @@ import (
 	"bytes"
 	_ "embed"
 	"image"
-	"image/draw"
+	"image/color"
 	_ "image/png"
+	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 //go:embed assets/exit/portal.png
-var portalData []byte
+var portalImageData []byte
+
+type PortalParticle struct {
+	Angle  float64
+	Radius float64
+	Speed  float64
+	Size   float64
+	Phase  float64
+}
 
 type Exit struct {
 	X float64
@@ -27,10 +37,12 @@ type Exit struct {
 	Image *ebiten.Image
 
 	GroundOffset float64
+
+	Particles []PortalParticle
 }
 
-func cropPortalImage(src image.Image) image.Image {
-	bounds := src.Bounds()
+func cropPortalImage(img image.Image) image.Image {
+	bounds := img.Bounds()
 
 	minX := bounds.Max.X
 	minY := bounds.Max.Y
@@ -41,45 +53,51 @@ func cropPortalImage(src image.Image) image.Image {
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			_, _, _, alpha := src.At(x, y).RGBA()
+			_, _, _, alpha := img.At(x, y).RGBA()
 
-			if alpha > 1000 {
-				found = true
+			if alpha <= 1000 {
+				continue
+			}
 
-				if x < minX {
-					minX = x
-				}
+			found = true
 
-				if y < minY {
-					minY = y
-				}
+			if x < minX {
+				minX = x
+			}
 
-				if x > maxX {
-					maxX = x
-				}
+			if y < minY {
+				minY = y
+			}
 
-				if y > maxY {
-					maxY = y
-				}
+			if x > maxX {
+				maxX = x
+			}
+
+			if y > maxY {
+				maxY = y
 			}
 		}
 	}
 
 	if !found {
-		return src
+		return img
 	}
 
-	cropRect := image.Rect(minX, minY, maxX+1, maxY+1)
+	rect := image.Rect(minX, minY, maxX+1, maxY+1)
 
-	result := image.NewRGBA(image.Rect(0, 0, cropRect.Dx(), cropRect.Dy()))
+	type subImager interface {
+		SubImage(r image.Rectangle) image.Image
+	}
 
-	draw.Draw(result, result.Bounds(), src, cropRect.Min, draw.Src)
+	if subImage, ok := img.(subImager); ok {
+		return subImage.SubImage(rect)
+	}
 
-	return result
+	return img
 }
 
-func loadPortalImage(data []byte) *ebiten.Image {
-	img, _, err := image.Decode(bytes.NewReader(data))
+func loadPortalImage() *ebiten.Image {
+	img, _, err := image.Decode(bytes.NewReader(portalImageData))
 	if err != nil {
 		panic(err)
 	}
@@ -90,52 +108,85 @@ func loadPortalImage(data []byte) *ebiten.Image {
 }
 
 func NewExit(levelGroundY float64) *Exit {
-	width := 68.0
-	height := 96.0
-	groundOffset := 20.0
+	particles := []PortalParticle{
+		{
+			Angle:  0,
+			Radius: 18,
+			Speed:  0.020,
+			Size:   1,
+			Phase:  0,
+		},
+		{
+			Angle:  1.2,
+			Radius: 21,
+			Speed:  0.017,
+			Size:   1,
+			Phase:  0.8,
+		},
+		{
+			Angle:  2.4,
+			Radius: 17,
+			Speed:  0.022,
+			Size:   1,
+			Phase:  1.6,
+		},
+		{
+			Angle:  3.6,
+			Radius: 20,
+			Speed:  0.018,
+			Size:   1,
+			Phase:  2.4,
+		},
+		{
+			Angle:  4.8,
+			Radius: 16,
+			Speed:  0.024,
+			Size:   1,
+			Phase:  3.2,
+		},
+	}
 
 	return &Exit{
-		X:              246,
-		Y:              levelGroundY - height - groundOffset,
-		Width:          width,
-		Height:         height,
-		Active:         false,
+		X: 246,
+		Y: levelGroundY - 96,
+
+		Width:  68,
+		Height: 96,
+
+		Active: false,
+
 		AnimationTimer: 0,
-		Image:          loadPortalImage(portalData),
-		GroundOffset:   groundOffset,
+
+		Image: loadPortalImage(),
+
+		GroundOffset: 20,
+
+		Particles: particles,
 	}
 }
 
 func (e *Exit) Update() {
-	if e.Active {
-		e.AnimationTimer++
+	e.AnimationTimer++
 
-		if e.AnimationTimer >= 120 {
-			e.AnimationTimer = 0
-		}
-	} else {
-		e.AnimationTimer = 0
+	for i := range e.Particles {
+		e.Particles[i].Angle += e.Particles[i].Speed
 	}
-
-	e.Y = groundY - e.Height - e.GroundOffset
 }
 
 func (e *Exit) HitBox() Rect {
-	interactionWidth := 36.0
-	interactionHeight := 65.0
-
-	centerX := e.X + e.Width/2
-	visualGroundY := groundY - e.GroundOffset
-
 	return Rect{
-		X: centerX - interactionWidth/2,
-		Y: visualGroundY - interactionHeight,
-		W: interactionWidth,
-		H: interactionHeight,
+		X: e.X + 15,
+		Y: e.Y + 15,
+		W: e.Width - 30,
+		H: e.Height - 15,
 	}
 }
 
 func (e *Exit) PlayerInside(player *Player) bool {
+	if player == nil {
+		return false
+	}
+
 	return Intersects(e.HitBox(), player.HitBox())
 }
 
@@ -144,55 +195,215 @@ func (e *Exit) Draw(screen *ebiten.Image) {
 		return
 	}
 
+	e.drawPortalLight(screen)
+
+	if e.Active {
+		e.drawParticles(screen)
+	}
+
+	e.drawPortalImage(screen)
+
+	if e.Active {
+		e.drawGroundEnergy(screen)
+	}
+}
+
+func (e *Exit) drawPortalLight(screen *ebiten.Image) {
+	centerX := e.X + e.Width/2
+
+	pulse := (math.Sin(float64(e.AnimationTimer)*0.055) + 1) / 2
+
+	/*
+		Le halo est volontairement beaucoup plus petit qu'avant.
+		Il reste uniquement autour du centre bleu du portail.
+	*/
+	glowWidth := 32.0 + pulse*3
+	glowHeight := 60.0 + pulse*3
+
+	glowX := centerX - glowWidth/2
+	glowY := e.Y + 24
+
+	alpha := uint8(18)
+
+	if e.Active {
+		alpha = uint8(28 + pulse*12)
+	}
+
+	ebitenutil.DrawRect(
+		screen,
+		glowX,
+		glowY,
+		glowWidth,
+		glowHeight,
+		color.RGBA{
+			R: 35,
+			G: 85,
+			B: 255,
+			A: alpha,
+		},
+	)
+
+	/*
+		Petit noyau lumineux.
+		Il ne dépasse presque plus de l'ouverture.
+	*/
+	coreWidth := 22.0 + pulse*2
+	coreHeight := 48.0 + pulse*2
+
+	coreX := centerX - coreWidth/2
+	coreY := e.Y + 30
+
+	coreAlpha := uint8(15)
+
+	if e.Active {
+		coreAlpha = uint8(30 + pulse*15)
+	}
+
+	ebitenutil.DrawRect(
+		screen,
+		coreX,
+		coreY,
+		coreWidth,
+		coreHeight,
+		color.RGBA{
+			R: 40,
+			G: 115,
+			B: 255,
+			A: coreAlpha,
+		},
+	)
+}
+
+func (e *Exit) drawPortalImage(screen *ebiten.Image) {
 	imageWidth := float64(e.Image.Bounds().Dx())
 	imageHeight := float64(e.Image.Bounds().Dy())
+
+	if imageWidth <= 0 || imageHeight <= 0 {
+		return
+	}
+
+	pulse := (math.Sin(float64(e.AnimationTimer)*0.045) + 1) / 2
 
 	scaleX := e.Width / imageWidth
 	scaleY := e.Height / imageHeight
 
-	scale := scaleX
+	/*
+		Très légère pulsation seulement.
+		Le portail ne grossit presque plus.
+	*/
+	visualPulse := 1.0
 
-	if scaleY < scale {
-		scale = scaleY
+	if e.Active {
+		visualPulse = 1.0 + pulse*0.006
 	}
 
-	drawWidth := imageWidth * scale
-	drawHeight := imageHeight * scale
+	scaleX *= visualPulse
+	scaleY *= visualPulse
 
-	visualGroundY := groundY - e.GroundOffset
+	drawWidth := imageWidth * scaleX
+	drawHeight := imageHeight * scaleY
 
-	drawX := e.X + e.Width/2 - drawWidth/2
-	drawY := visualGroundY - drawHeight
+	centerX := e.X + e.Width/2
+
+	drawX := centerX - drawWidth/2
+	drawY := groundY - drawHeight - e.GroundOffset
+
+	e.Y = drawY
 
 	options := &ebiten.DrawImageOptions{}
 
+	options.GeoM.Scale(scaleX, scaleY)
+	options.GeoM.Translate(drawX, drawY)
+
+	options.Filter = ebiten.FilterNearest
+
 	if e.Active {
-		pulse := 1.0
+		brightness := float32(1.02 + pulse*0.05)
 
-		if e.AnimationTimer < 30 {
-			pulse = 1.00
-		} else if e.AnimationTimer < 60 {
-			pulse = 1.03
-		} else if e.AnimationTimer < 90 {
-			pulse = 1.05
-		} else {
-			pulse = 1.03
-		}
-
-		centerX := drawX + drawWidth/2
-		centerY := drawY + drawHeight/2
-
-		options.GeoM.Translate(-imageWidth/2, -imageHeight/2)
-		options.GeoM.Scale(scale*pulse, scale*pulse)
-		options.GeoM.Translate(centerX, centerY)
-
-		options.ColorScale.Scale(1.15, 1.15, 1.3, 1)
+		options.ColorScale.Scale(
+			brightness,
+			brightness,
+			1.08,
+			1,
+		)
 	} else {
-		options.GeoM.Scale(scale, scale)
-		options.GeoM.Translate(drawX, drawY)
-
-		options.ColorScale.Scale(0.45, 0.45, 0.55, 0.75)
+		options.ColorScale.Scale(
+			0.55,
+			0.55,
+			0.65,
+			1,
+		)
 	}
 
 	screen.DrawImage(e.Image, options)
+}
+
+func (e *Exit) drawParticles(screen *ebiten.Image) {
+	centerX := e.X + e.Width/2
+	centerY := e.Y + e.Height/2
+
+	timer := float64(e.AnimationTimer)
+
+	for i := range e.Particles {
+		particle := &e.Particles[i]
+
+		/*
+			Les particules restent très proches de la porte.
+		*/
+		angle := particle.Angle
+
+		verticalWave := math.Sin(timer*0.035 + particle.Phase)
+
+		x := centerX + math.Cos(angle)*particle.Radius
+		y := centerY + math.Sin(angle)*particle.Radius*1.45 + verticalWave*3
+
+		alphaPulse := (math.Sin(timer*0.08+particle.Phase) + 1) / 2
+
+		alpha := uint8(90 + alphaPulse*100)
+
+		ebitenutil.DrawRect(
+			screen,
+			x,
+			y,
+			particle.Size,
+			particle.Size,
+			color.RGBA{
+				R: 95,
+				G: 160,
+				B: 255,
+				A: alpha,
+			},
+		)
+	}
+}
+
+func (e *Exit) drawGroundEnergy(screen *ebiten.Image) {
+	centerX := e.X + e.Width/2
+	ground := groundY - e.GroundOffset + 2
+
+	timer := float64(e.AnimationTimer)
+
+	for i := 0; i < 4; i++ {
+		offset := math.Sin(timer*0.06+float64(i)*1.8) * 12
+
+		x := centerX + offset
+
+		alphaPulse := (math.Sin(timer*0.09+float64(i)) + 1) / 2
+
+		alpha := uint8(70 + alphaPulse*90)
+
+		ebitenutil.DrawRect(
+			screen,
+			x,
+			ground,
+			1,
+			1,
+			color.RGBA{
+				R: 100,
+				G: 175,
+				B: 255,
+				A: alpha,
+			},
+		)
+	}
 }
