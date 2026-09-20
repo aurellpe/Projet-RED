@@ -39,34 +39,80 @@ type SkillTreeSave struct {
 	Points               int             `json:"points"`
 	Unlocked             map[string]bool `json:"unlocked"`
 	HighestRewardedLevel int             `json:"highest_rewarded_level"`
+
+	PlayerLevel       int `json:"player_level"`
+	CurrentExperience int `json:"current_experience"`
+	ExperienceMax     int `json:"experience_max"`
 }
 
 type SkillTree struct {
 	Points               int
 	Unlocked             map[string]bool
 	HighestRewardedLevel int
-	Open                 bool
-	SelectedBranch       int
-	SelectedRow          int
-	Message              string
-	MessageTimer         int
+
+	PlayerLevel       int
+	CurrentExperience int
+	ExperienceMax     int
+
+	Open           bool
+	SelectedBranch int
+	SelectedRow    int
+
+	Message      string
+	MessageTimer int
 }
 
 var skillBranches = [][]SkillDefinition{
 	{
-		{ID: SkillPower1, Name: "FORCE I", Description: "ATTAQUE +10%"},
-		{ID: SkillPower2, Name: "FORCE II", Description: "ATTAQUE +10%"},
-		{ID: SkillPower3, Name: "FRAPPE BRUTALE", Description: "ATTAQUE NORMALE +25%"},
+		{
+			ID:          SkillPower1,
+			Name:        "FORCE I",
+			Description: "ATTAQUE +10%",
+		},
+		{
+			ID:          SkillPower2,
+			Name:        "FORCE II",
+			Description: "ATTAQUE +10%",
+		},
+		{
+			ID:          SkillPower3,
+			Name:        "FRAPPE BRUTALE",
+			Description: "ATTAQUE NORMALE +25%",
+		},
 	},
 	{
-		{ID: SkillDefense1, Name: "VITALITE I", Description: "+20 PV MAX"},
-		{ID: SkillDefense2, Name: "GARDE RENFORCEE", Description: "GARDE REDUIT 70%"},
-		{ID: SkillDefense3, Name: "POTION +", Description: "POTION REND 50 PV"},
+		{
+			ID:          SkillDefense1,
+			Name:        "VITALITE I",
+			Description: "+20 PV MAX",
+		},
+		{
+			ID:          SkillDefense2,
+			Name:        "GARDE RENFORCEE",
+			Description: "GARDE REDUIT 70%",
+		},
+		{
+			ID:          SkillDefense3,
+			Name:        "POTION +",
+			Description: "POTION REND 50 PV",
+		},
 	},
 	{
-		{ID: SkillEnergy1, Name: "RAYON I", Description: "RAYON = 225%"},
-		{ID: SkillEnergy2, Name: "MAITRISE", Description: "RECHARGE PLUS COURTE"},
-		{ID: SkillEnergy3, Name: "SURCHARGE", Description: "RAYON = 300%"},
+		{
+			ID:          SkillEnergy1,
+			Name:        "RAYON I",
+			Description: "RAYON = 225%",
+		},
+		{
+			ID:          SkillEnergy2,
+			Name:        "MAITRISE",
+			Description: "RECHARGE PLUS COURTE",
+		},
+		{
+			ID:          SkillEnergy3,
+			Name:        "SURCHARGE",
+			Description: "RAYON = 300%",
+		},
 	},
 }
 
@@ -75,35 +121,71 @@ func NewSkillTree() *SkillTree {
 		Points:               0,
 		Unlocked:             map[string]bool{},
 		HighestRewardedLevel: -1,
-		Open:                 false,
-		SelectedBranch:       0,
-		SelectedRow:          0,
-		Message:              "",
-		MessageTimer:         0,
+
+		PlayerLevel:       1,
+		CurrentExperience: 0,
+		ExperienceMax:     ExperienceRequiredForLevel(1),
+
+		Open:           false,
+		SelectedBranch: 0,
+		SelectedRow:    0,
+
+		Message:      "",
+		MessageTimer: 0,
 	}
+}
+
+func ExperienceRequiredForLevel(level int) int {
+	if level < 1 {
+		level = 1
+	}
+
+	return 100 + (level-1)*50
 }
 
 func skillTreeSavePath() string {
 	configDir, err := os.UserConfigDir()
+
 	if err != nil {
 		return "eldoria_skills.json"
 	}
 
-	dir := filepath.Join(configDir, "Eldoria")
-	_ = os.MkdirAll(dir, 0755)
+	dir := filepath.Join(
+		configDir,
+		"Eldoria",
+	)
 
-	return filepath.Join(dir, "skills.json")
+	_ = os.MkdirAll(
+		dir,
+		0755,
+	)
+
+	return filepath.Join(
+		dir,
+		"skills.json",
+	)
 }
 
 func LoadSkillTreeProgress() *SkillTree {
 	tree := NewSkillTree()
 
-	data, err := os.ReadFile(skillTreeSavePath())
+	data, err := os.ReadFile(
+		skillTreeSavePath(),
+	)
+
 	if err != nil {
 		return tree
 	}
 
-	var save SkillTreeSave
+	save := SkillTreeSave{
+		Points:               0,
+		Unlocked:             map[string]bool{},
+		HighestRewardedLevel: -1,
+
+		PlayerLevel:       1,
+		CurrentExperience: 0,
+		ExperienceMax:     ExperienceRequiredForLevel(1),
+	}
 
 	if json.Unmarshal(data, &save) != nil {
 		return tree
@@ -114,6 +196,21 @@ func LoadSkillTreeProgress() *SkillTree {
 
 	if save.Unlocked != nil {
 		tree.Unlocked = save.Unlocked
+	}
+
+	tree.PlayerLevel = save.PlayerLevel
+
+	if tree.PlayerLevel < 1 {
+		tree.PlayerLevel = 1
+	}
+
+	tree.CurrentExperience = save.CurrentExperience
+	tree.ExperienceMax = save.ExperienceMax
+
+	if tree.ExperienceMax <= 0 {
+		tree.ExperienceMax = ExperienceRequiredForLevel(
+			tree.PlayerLevel,
+		)
 	}
 
 	return tree
@@ -128,18 +225,34 @@ func SaveSkillTreeProgress(tree *SkillTree) error {
 		Points:               tree.Points,
 		Unlocked:             tree.Unlocked,
 		HighestRewardedLevel: tree.HighestRewardedLevel,
+
+		PlayerLevel:       tree.PlayerLevel,
+		CurrentExperience: tree.CurrentExperience,
+		ExperienceMax:     tree.ExperienceMax,
 	}
 
-	data, err := json.MarshalIndent(save, "", "  ")
+	data, err := json.MarshalIndent(
+		save,
+		"",
+		"  ",
+	)
+
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(skillTreeSavePath(), data, 0644)
+	return os.WriteFile(
+		skillTreeSavePath(),
+		data,
+		0644,
+	)
 }
 
 func DeleteSkillTreeProgress() error {
-	err := os.Remove(skillTreeSavePath())
+	err := os.Remove(
+		skillTreeSavePath(),
+	)
+
 	if os.IsNotExist(err) {
 		return nil
 	}
@@ -148,171 +261,92 @@ func DeleteSkillTreeProgress() error {
 }
 
 func (s *SkillTree) Has(skillID string) bool {
-	if s == nil || s.Unlocked == nil {
+	if s == nil {
+		return false
+	}
+
+	if s.Unlocked == nil {
 		return false
 	}
 
 	return s.Unlocked[skillID]
 }
 
-func (s *SkillTree) OpenMenu() {
+func (s *SkillTree) AddExperience(amount int) int {
 	if s == nil {
-		return
+		return 0
 	}
 
-	s.Open = true
-	s.Message = "CHOISIS UNE COMPETENCE"
-	s.MessageTimer = 0
-}
-
-func (s *SkillTree) CloseMenu() {
-	if s == nil {
-		return
+	if amount <= 0 {
+		return 0
 	}
 
-	s.Open = false
-	_ = SaveSkillTreeProgress(s)
-}
-
-func (s *SkillTree) Update(game *Game) {
-	if s == nil || !s.Open {
-		return
+	if s.PlayerLevel < 1 {
+		s.PlayerLevel = 1
 	}
 
-	if s.MessageTimer > 0 {
-		s.MessageTimer--
+	if s.ExperienceMax <= 0 {
+		s.ExperienceMax = ExperienceRequiredForLevel(
+			s.PlayerLevel,
+		)
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyC) || inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		s.CloseMenu()
-		return
+	s.CurrentExperience += amount
+
+	levelUps := 0
+
+	for s.CurrentExperience >= s.ExperienceMax {
+		s.CurrentExperience -= s.ExperienceMax
+
+		s.PlayerLevel++
+		levelUps++
+
+		s.ExperienceMax = ExperienceRequiredForLevel(
+			s.PlayerLevel,
+		)
 	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
-		s.SelectedBranch--
-		if s.SelectedBranch < 0 {
-			s.SelectedBranch = 2
-		}
-	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
-		s.SelectedBranch++
-		if s.SelectedBranch > 2 {
-			s.SelectedBranch = 0
-		}
-	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
-		s.SelectedRow--
-		if s.SelectedRow < 0 {
-			s.SelectedRow = 2
-		}
-	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
-		s.SelectedRow++
-		if s.SelectedRow > 2 {
-			s.SelectedRow = 0
-		}
-	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		if s.UnlockSelected() {
-			if game != nil {
-				game.ApplyCurrentLevelProgression()
-			}
-
-			_ = SaveSkillTreeProgress(s)
-		}
-	}
-}
-
-func (s *SkillTree) UnlockSelected() bool {
-	if s == nil {
-		return false
-	}
-
-	if s.SelectedBranch < 0 || s.SelectedBranch >= len(skillBranches) {
-		return false
-	}
-
-	branch := skillBranches[s.SelectedBranch]
-
-	if s.SelectedRow < 0 || s.SelectedRow >= len(branch) {
-		return false
-	}
-
-	skill := branch[s.SelectedRow]
-
-	if s.Has(skill.ID) {
-		s.SetMessage("COMPETENCE DEJA DEBLOQUEE")
-		return false
-	}
-
-	if s.SelectedRow > 0 {
-		previousSkill := branch[s.SelectedRow-1]
-
-		if !s.Has(previousSkill.ID) {
-			s.SetMessage("DEBLOQUE D'ABORD LA COMPETENCE PRECEDENTE")
-			return false
-		}
-	}
-
-	if s.Points <= 0 {
-		s.SetMessage("PAS ASSEZ DE POINTS")
-		return false
-	}
-
-	s.Points--
-	s.Unlocked[skill.ID] = true
-	s.SetMessage(skill.Name + " DEBLOQUEE")
-
-	return true
-}
-
-func (s *SkillTree) SetMessage(message string) {
-	s.Message = message
-	s.MessageTimer = 120
-}
-
-func (s *SkillTree) AwardLevelCompletion(levelIndex int) bool {
-	if s == nil {
-		return false
-	}
-
-	if levelIndex < 0 || levelIndex > 2 {
-		return false
-	}
-
-	if levelIndex <= s.HighestRewardedLevel {
-		return false
-	}
-
-	s.Points += 2
-	s.HighestRewardedLevel = levelIndex
-	s.SetMessage("+2 POINTS DE COMPETENCE")
 
 	_ = SaveSkillTreeProgress(s)
 
-	return true
+	return levelUps
 }
 
-func (s *SkillTree) GrantCatchUpRewards(currentLevel int) {
+func (s *SkillTree) LevelHPBonus() int {
 	if s == nil {
-		return
+		return 0
 	}
 
-	for levelIndex := 0; levelIndex < currentLevel && levelIndex <= 2; levelIndex++ {
-		s.AwardLevelCompletion(levelIndex)
+	if s.PlayerLevel <= 1 {
+		return 0
 	}
+
+	return (s.PlayerLevel - 1) * 10
+}
+
+func (s *SkillTree) LevelAttackBonus() int {
+	if s == nil {
+		return 0
+	}
+
+	if s.PlayerLevel <= 1 {
+		return 0
+	}
+
+	return (s.PlayerLevel - 1) * 3
 }
 
 func (s *SkillTree) MaxHPBonus() int {
-	if s != nil && s.Has(SkillDefense1) {
-		return 20
+	if s == nil {
+		return 0
 	}
 
-	return 0
+	bonus := s.LevelHPBonus()
+
+	if s.Has(SkillDefense1) {
+		bonus += 20
+	}
+
+	return bonus
 }
 
 func (s *SkillTree) ApplyAttackBonus(baseDamage int) int {
@@ -329,6 +363,8 @@ func (s *SkillTree) ApplyAttackBonus(baseDamage int) int {
 	if s.Has(SkillPower2) {
 		damage += baseDamage / 10
 	}
+
+	damage += s.LevelAttackBonus()
 
 	return damage
 }
@@ -401,12 +437,198 @@ func (s *SkillTree) RayCooldown() int {
 	return 3
 }
 
+func (s *SkillTree) OpenMenu() {
+	if s == nil {
+		return
+	}
+
+	s.Open = true
+	s.Message = "CHOISIS UNE COMPETENCE"
+	s.MessageTimer = 0
+}
+
+func (s *SkillTree) CloseMenu() {
+	if s == nil {
+		return
+	}
+
+	s.Open = false
+
+	_ = SaveSkillTreeProgress(s)
+}
+
+func (s *SkillTree) Update(game *Game) {
+	if s == nil || !s.Open {
+		return
+	}
+
+	if s.MessageTimer > 0 {
+		s.MessageTimer--
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyC) || inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		s.CloseMenu()
+		return
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
+		s.SelectedBranch--
+
+		if s.SelectedBranch < 0 {
+			s.SelectedBranch = 2
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
+		s.SelectedBranch++
+
+		if s.SelectedBranch > 2 {
+			s.SelectedBranch = 0
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
+		s.SelectedRow--
+
+		if s.SelectedRow < 0 {
+			s.SelectedRow = 2
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
+		s.SelectedRow++
+
+		if s.SelectedRow > 2 {
+			s.SelectedRow = 0
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		if s.UnlockSelected() {
+			if game != nil {
+				game.ApplyCurrentLevelProgression()
+			}
+
+			_ = SaveSkillTreeProgress(s)
+		}
+	}
+}
+
+func (s *SkillTree) UnlockSelected() bool {
+	if s == nil {
+		return false
+	}
+
+	if s.SelectedBranch < 0 || s.SelectedBranch >= len(skillBranches) {
+		return false
+	}
+
+	branch := skillBranches[s.SelectedBranch]
+
+	if s.SelectedRow < 0 || s.SelectedRow >= len(branch) {
+		return false
+	}
+
+	skill := branch[s.SelectedRow]
+
+	if s.Has(skill.ID) {
+		s.SetMessage(
+			"COMPETENCE DEJA DEBLOQUEE",
+		)
+
+		return false
+	}
+
+	if s.SelectedRow > 0 {
+		previousSkill := branch[s.SelectedRow-1]
+
+		if !s.Has(previousSkill.ID) {
+			s.SetMessage(
+				"DEBLOQUE D'ABORD LA COMPETENCE PRECEDENTE",
+			)
+
+			return false
+		}
+	}
+
+	if s.Points <= 0 {
+		s.SetMessage(
+			"PAS ASSEZ DE POINTS",
+		)
+
+		return false
+	}
+
+	s.Points--
+	s.Unlocked[skill.ID] = true
+
+	s.SetMessage(
+		skill.Name + " DEBLOQUEE",
+	)
+
+	return true
+}
+
+func (s *SkillTree) SetMessage(message string) {
+	s.Message = message
+	s.MessageTimer = 120
+}
+
+func (s *SkillTree) AwardLevelCompletion(levelIndex int) bool {
+	if s == nil {
+		return false
+	}
+
+	if levelIndex < 0 || levelIndex > 2 {
+		return false
+	}
+
+	if levelIndex <= s.HighestRewardedLevel {
+		return false
+	}
+
+	s.Points += 2
+	s.HighestRewardedLevel = levelIndex
+
+	s.SetMessage(
+		"+2 POINTS DE COMPETENCE",
+	)
+
+	_ = SaveSkillTreeProgress(s)
+
+	return true
+}
+
+func (s *SkillTree) GrantCatchUpRewards(currentLevel int) {
+	if s == nil {
+		return
+	}
+
+	for levelIndex := 0; levelIndex < currentLevel && levelIndex <= 2; levelIndex++ {
+		s.AwardLevelCompletion(
+			levelIndex,
+		)
+	}
+}
+
 func (s *SkillTree) Draw(screen *ebiten.Image) {
 	if s == nil || !s.Open {
 		return
 	}
 
-	hudRect(screen, 0, 0, renderWidth, renderHeight, color.RGBA{R: 0, G: 0, B: 0, A: 205})
+	hudRect(
+		screen,
+		0,
+		0,
+		renderWidth,
+		renderHeight,
+		color.RGBA{
+			R: 0,
+			G: 0,
+			B: 0,
+			A: 205,
+		},
+	)
 
 	hudRect(
 		screen,
@@ -414,7 +636,12 @@ func (s *SkillTree) Draw(screen *ebiten.Image) {
 		45,
 		1120,
 		630,
-		color.RGBA{R: 7, G: 9, B: 15, A: 248},
+		color.RGBA{
+			R: 7,
+			G: 9,
+			B: 15,
+			A: 248,
+		},
 	)
 
 	hudRect(
@@ -423,7 +650,12 @@ func (s *SkillTree) Draw(screen *ebiten.Image) {
 		45,
 		1120,
 		4,
-		color.RGBA{R: 205, G: 155, B: 65, A: 255},
+		color.RGBA{
+			R: 205,
+			G: 155,
+			B: 65,
+			A: 255,
+		},
 	)
 
 	hudCenteredText(
@@ -435,7 +667,13 @@ func (s *SkillTree) Draw(screen *ebiten.Image) {
 
 	hudCenteredText(
 		screen,
-		fmt.Sprintf("POINTS DISPONIBLES : %d", s.Points),
+		fmt.Sprintf(
+			"NIVEAU %d   |   XP %d/%d   |   POINTS : %d",
+			s.PlayerLevel,
+			s.CurrentExperience,
+			s.ExperienceMax,
+			s.Points,
+		),
 		float64(renderWidth)/2,
 		105,
 	)
@@ -499,23 +737,58 @@ func (s *SkillTree) drawSkillNode(screen *ebiten.Image, branch int, row int, x f
 	unlocked := s.Has(skill.ID)
 	available := row == 0 || s.Has(skillBranches[branch][row-1].ID)
 
-	outerColor := color.RGBA{R: 45, G: 48, B: 58, A: 255}
-	innerColor := color.RGBA{R: 18, G: 21, B: 30, A: 255}
+	outerColor := color.RGBA{
+		R: 45,
+		G: 48,
+		B: 58,
+		A: 255,
+	}
+
+	innerColor := color.RGBA{
+		R: 18,
+		G: 21,
+		B: 30,
+		A: 255,
+	}
+
 	status := "VERROUILLE"
 
 	if available {
-		outerColor = color.RGBA{R: 65, G: 95, B: 140, A: 255}
+		outerColor = color.RGBA{
+			R: 65,
+			G: 95,
+			B: 140,
+			A: 255,
+		}
+
 		status = "1 POINT"
 	}
 
 	if unlocked {
-		outerColor = color.RGBA{R: 55, G: 135, B: 80, A: 255}
-		innerColor = color.RGBA{R: 14, G: 40, B: 25, A: 255}
+		outerColor = color.RGBA{
+			R: 55,
+			G: 135,
+			B: 80,
+			A: 255,
+		}
+
+		innerColor = color.RGBA{
+			R: 14,
+			G: 40,
+			B: 25,
+			A: 255,
+		}
+
 		status = "DEBLOQUEE"
 	}
 
 	if selected {
-		outerColor = color.RGBA{R: 220, G: 170, B: 70, A: 255}
+		outerColor = color.RGBA{
+			R: 220,
+			G: 170,
+			B: 70,
+			A: 255,
+		}
 	}
 
 	hudRect(
@@ -564,7 +837,12 @@ func (s *SkillTree) drawSkillNode(screen *ebiten.Image, branch int, row int, x f
 			y+95,
 			4,
 			30,
-			color.RGBA{R: 80, G: 85, B: 100, A: 255},
+			color.RGBA{
+				R: 80,
+				G: 85,
+				B: 100,
+				A: 255,
+			},
 		)
 	}
 }

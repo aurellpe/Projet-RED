@@ -115,6 +115,150 @@ func drawMinimalBar(screen *ebiten.Image, x float64, y float64, w float64, h flo
 	}
 }
 
+func drawManaBar(screen *ebiten.Image, x float64, y float64, w float64, h float64, ratio float64) {
+	if ratio < 0 {
+		ratio = 0
+	}
+
+	if ratio > 1 {
+		ratio = 1
+	}
+
+	hudRect(
+		screen,
+		x,
+		y,
+		w,
+		h,
+		color.RGBA{
+			R: 10,
+			G: 15,
+			B: 30,
+			A: 230,
+		},
+	)
+
+	hudRect(
+		screen,
+		x+1,
+		y+1,
+		w-2,
+		h-2,
+		color.RGBA{
+			R: 15,
+			G: 35,
+			B: 80,
+			A: 255,
+		},
+	)
+
+	if ratio <= 0 {
+		return
+	}
+
+	fillWidth := (w - 2) * ratio
+
+	hudRect(
+		screen,
+		x+1,
+		y+1,
+		fillWidth,
+		h-2,
+		color.RGBA{
+			R: 40,
+			G: 110,
+			B: 235,
+			A: 255,
+		},
+	)
+
+	hudRect(
+		screen,
+		x+1,
+		y+1,
+		fillWidth,
+		2,
+		color.RGBA{
+			R: 120,
+			G: 190,
+			B: 255,
+			A: 255,
+		},
+	)
+}
+
+func drawXPBar(screen *ebiten.Image, x float64, y float64, w float64, h float64, ratio float64) {
+	if ratio < 0 {
+		ratio = 0
+	}
+
+	if ratio > 1 {
+		ratio = 1
+	}
+
+	hudRect(
+		screen,
+		x,
+		y,
+		w,
+		h,
+		color.RGBA{
+			R: 12,
+			G: 15,
+			B: 24,
+			A: 230,
+		},
+	)
+
+	hudRect(
+		screen,
+		x+1,
+		y+1,
+		w-2,
+		h-2,
+		color.RGBA{
+			R: 55,
+			G: 40,
+			B: 12,
+			A: 255,
+		},
+	)
+
+	if ratio <= 0 {
+		return
+	}
+
+	fillWidth := (w - 2) * ratio
+
+	hudRect(
+		screen,
+		x+1,
+		y+1,
+		fillWidth,
+		h-2,
+		color.RGBA{
+			R: 220,
+			G: 165,
+			B: 45,
+			A: 255,
+		},
+	)
+
+	hudRect(
+		screen,
+		x+1,
+		y+1,
+		fillWidth,
+		2,
+		color.RGBA{
+			R: 255,
+			G: 220,
+			B: 110,
+			A: 255,
+		},
+	)
+}
+
 func (g *Game) DrawHUD(screen *ebiten.Image) {
 	if g.Player == nil {
 		return
@@ -137,6 +281,7 @@ func (g *Game) DrawHUD(screen *ebiten.Image) {
 
 	if !g.Player.Alive {
 		g.drawGameOverHUD(screen)
+
 		return
 	}
 
@@ -150,31 +295,118 @@ func (g *Game) DrawHUD(screen *ebiten.Image) {
 }
 
 func (g *Game) drawPlayerHUD(screen *ebiten.Image) {
-	ratio := float64(g.Player.HP) / float64(g.Player.MaxHP)
+	hpRatio := float64(g.Player.HP) / float64(g.Player.MaxHP)
+
+	manaRatio := 0.0
+
+	if g.Player.ManaMax > 0 {
+		manaRatio = float64(g.Player.Mana) / float64(g.Player.ManaMax)
+	}
 
 	hudRect(
 		screen,
 		18,
 		18,
-		205,
-		47,
+		260,
+		110,
 		color.RGBA{
 			R: 5,
 			G: 8,
 			B: 14,
-			A: 125,
+			A: 155,
 		},
 	)
 
 	drawHUDText(screen, "PV", 28, 27)
 
-	drawMinimalBar(screen, 57, 28, 148, 9, ratio)
+	drawMinimalBar(
+		screen,
+		65,
+		28,
+		185,
+		9,
+		hpRatio,
+	)
 
 	drawHUDText(
 		screen,
-		fmt.Sprintf("%d/%d", g.Player.HP, g.Player.MaxHP),
-		57,
-		45,
+		fmt.Sprintf(
+			"%d/%d",
+			g.Player.HP,
+			g.Player.MaxHP,
+		),
+		65,
+		42,
+	)
+
+	drawHUDText(screen, "MANA", 28, 60)
+
+	drawManaBar(
+		screen,
+		78,
+		61,
+		172,
+		9,
+		manaRatio,
+	)
+
+	drawHUDText(
+		screen,
+		fmt.Sprintf(
+			"%d/%d",
+			g.Player.Mana,
+			g.Player.ManaMax,
+		),
+		78,
+		75,
+	)
+
+	if g.SkillTree == nil {
+		return
+	}
+
+	playerLevel := g.SkillTree.PlayerLevel
+
+	if playerLevel < 1 {
+		playerLevel = 1
+	}
+
+	xpMax := g.SkillTree.ExperienceMax
+
+	if xpMax <= 0 {
+		xpMax = 100
+	}
+
+	xpRatio := float64(g.SkillTree.CurrentExperience) / float64(xpMax)
+
+	drawHUDText(
+		screen,
+		fmt.Sprintf(
+			"NIV %d",
+			playerLevel,
+		),
+		28,
+		94,
+	)
+
+	drawXPBar(
+		screen,
+		78,
+		96,
+		172,
+		8,
+		xpRatio,
+	)
+
+	drawHUDText(
+		screen,
+		fmt.Sprintf(
+			"XP %d/%d",
+			g.SkillTree.CurrentExperience,
+			xpMax,
+		),
+		78,
+		108,
 	)
 }
 
@@ -190,20 +422,31 @@ func (g *Game) drawLevelHUD(screen *ebiten.Image) {
 
 	hudCenteredText(
 		screen,
-		fmt.Sprintf("NIVEAU %d", level.Number),
+		fmt.Sprintf(
+			"NIVEAU %d",
+			level.Number,
+		),
 		float64(renderWidth)/2,
 		39,
 	)
 }
 
 func (g *Game) drawEnemyHUD(screen *ebiten.Image) {
-	text := fmt.Sprintf("ENNEMIS  %d", g.EnemiesRemaining())
+	text := fmt.Sprintf(
+		"ENNEMIS  %d",
+		g.EnemiesRemaining(),
+	)
 
 	textWidth := float64(len(text)*6) * hudTextScale
 
 	x := float64(renderWidth) - textWidth - 25
 
-	drawHUDText(screen, text, x, 27)
+	drawHUDText(
+		screen,
+		text,
+		x,
+		27,
+	)
 }
 
 func (g *Game) drawExitHUD(screen *ebiten.Image) {
@@ -211,14 +454,26 @@ func (g *Game) drawExitHUD(screen *ebiten.Image) {
 		return
 	}
 
-	if g.Exit.Active {
-		text := "PORTAIL OUVERT"
+	allEnemiesDead := g.AllEnemiesDead()
 
-		textWidth := float64(len(text)*6) * hudTextScale
+	if allEnemiesDead {
+		if g.Puzzle != nil && !g.Puzzle.Solved {
+			text := "SCEAU A RESOUDRE"
 
-		x := float64(renderWidth) - textWidth - 25
+			textWidth := float64(len(text)*6) * hudTextScale
+			x := float64(renderWidth) - textWidth - 25
 
-		drawHUDText(screen, text, x, 48)
+			drawHUDText(screen, text, x, 48)
+		}
+
+		if g.Puzzle == nil || g.Puzzle.Solved {
+			text := "PORTAIL OUVERT"
+
+			textWidth := float64(len(text)*6) * hudTextScale
+			x := float64(renderWidth) - textWidth - 25
+
+			drawHUDText(screen, text, x, 48)
+		}
 	}
 
 	if !g.Exit.PlayerInside(g.Player) {
@@ -227,14 +482,17 @@ func (g *Game) drawExitHUD(screen *ebiten.Image) {
 
 	text := "PORTAIL VERROUILLE"
 
-	if g.Exit.Active {
-		text = "E  -  ENTRER"
+	if allEnemiesDead {
+		if g.Puzzle != nil && !g.Puzzle.Solved {
+			text = "E  -  RESOUDRE LE SCEAU"
+		} else {
+			text = "E  -  ENTRER"
+		}
 	}
 
 	textWidth := float64(len(text)*6) * hudTextScale
 
 	width := textWidth + 32
-
 	x := float64(renderWidth)/2 - width/2
 
 	hudRect(
@@ -266,9 +524,12 @@ func (g *Game) drawHealHUD(screen *ebiten.Image) {
 
 	drawHUDText(
 		screen,
-		fmt.Sprintf("+%d PV", g.LastHealAmount),
-		25,
-		78,
+		fmt.Sprintf(
+			"+%d PV",
+			g.LastHealAmount,
+		),
+		28,
+		140,
 	)
 }
 
@@ -282,15 +543,13 @@ func (g *Game) drawUpgradeHUD(screen *ebiten.Image) {
 	}
 
 	textWidth := float64(len(g.UpgradeMessage)*6) * hudTextScale
-
 	width := textWidth + 40
-
 	x := float64(renderWidth)/2 - width/2
 
 	hudRect(
 		screen,
 		x,
-		90,
+		105,
 		width,
 		30,
 		color.RGBA{
@@ -305,7 +564,7 @@ func (g *Game) drawUpgradeHUD(screen *ebiten.Image) {
 		screen,
 		g.UpgradeMessage,
 		float64(renderWidth)/2,
-		99,
+		114,
 	)
 }
 
@@ -338,7 +597,11 @@ func (g *Game) drawBossHUD(screen *ebiten.Image) {
 
 	hudCenteredText(
 		screen,
-		fmt.Sprintf("%d/%d", g.Boss.HP, g.Boss.MaxHP),
+		fmt.Sprintf(
+			"%d/%d",
+			g.Boss.HP,
+			g.Boss.MaxHP,
+		),
 		float64(renderWidth)/2,
 		62,
 	)
@@ -512,7 +775,10 @@ func (g *Game) drawTransitionHUD(screen *ebiten.Image) {
 
 			hudCenteredText(
 				screen,
-				fmt.Sprintf("NIVEAU %d", level.Number),
+				fmt.Sprintf(
+					"NIVEAU %d",
+					level.Number,
+				),
 				float64(renderWidth)/2,
 				380,
 			)

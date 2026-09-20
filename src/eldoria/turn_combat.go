@@ -14,38 +14,61 @@ const (
 	TurnStatePlayer = iota
 	TurnStatePlayerAction
 	TurnStateEnemy
+	TurnStateReward
 )
 
 const (
 	TurnActionAttack = iota
 	TurnActionSkill
 	TurnActionDefend
-	TurnActionItem
+	TurnActionHealthPotion
+	TurnActionManaPotion
 )
 
+const BossInitiative = 12
+const BossExperienceReward = 250
+
+const RayonManaCost = 40
+const ManaPotionRestore = 40
+
 type TurnCombat struct {
-	Active         bool
-	State          int
-	Selected       int
-	Timer          int
-	Player         *Player
-	Enemy          *Enemy
-	Boss           *Boss
-	Skills         *SkillTree
-	Message        string
-	PendingAction  int
-	PendingDamage  int
-	DamageApplied  bool
-	Defending      bool
-	Potions        int
-	SkillCooldown  int
+	Active bool
+
+	State    int
+	Selected int
+	Timer    int
+
+	Player *Player
+	Enemy  *Enemy
+	Boss   *Boss
+
+	Skills *SkillTree
+
+	Message string
+
+	PendingAction int
+	PendingDamage int
+
+	DamageApplied bool
+	Defending     bool
+
+	HealthPotions int
+	ManaPotions   int
+
+	SkillCooldown int
+
 	TargetDefeated bool
+
+	ExperienceAwarded  bool
+	LastExperienceGain int
+	LevelUpsGained     int
 }
 
 func NewTurnCombat() *TurnCombat {
 	return &TurnCombat{
-		State:   TurnStatePlayer,
-		Potions: 2,
+		State:         TurnStatePlayer,
+		HealthPotions: 2,
+		ManaPotions:   1,
 	}
 }
 
@@ -58,18 +81,30 @@ func (c *TurnCombat) Reset() {
 	c.State = TurnStatePlayer
 	c.Selected = 0
 	c.Timer = 0
+
 	c.Player = nil
 	c.Enemy = nil
 	c.Boss = nil
 	c.Skills = nil
+
 	c.Message = ""
+
 	c.PendingAction = TurnActionAttack
 	c.PendingDamage = 0
+
 	c.DamageApplied = false
 	c.Defending = false
-	c.Potions = 2
+
+	c.HealthPotions = 2
+	c.ManaPotions = 1
+
 	c.SkillCooldown = 0
+
 	c.TargetDefeated = false
+
+	c.ExperienceAwarded = false
+	c.LastExperienceGain = 0
+	c.LevelUpsGained = 0
 }
 
 func (c *TurnCombat) StartEnemy(enemy *Enemy, player *Player, skills *SkillTree) {
@@ -83,8 +118,9 @@ func (c *TurnCombat) StartEnemy(enemy *Enemy, player *Player, skills *SkillTree)
 	c.Player = player
 	c.Enemy = enemy
 	c.Skills = skills
-	c.Potions = 2
-	c.Message = "TON TOUR"
+
+	c.HealthPotions = 2
+	c.ManaPotions = 1
 
 	enemy.Attacking = false
 	enemy.Moving = false
@@ -95,7 +131,7 @@ func (c *TurnCombat) StartEnemy(enemy *Enemy, player *Player, skills *SkillTree)
 	player.CurrentWalkFrame = 0
 	player.StopEnergyAnimation()
 
-	c.FaceCharacters(player)
+	c.DecideFirstTurn(player, enemy.Initiative)
 }
 
 func (c *TurnCombat) StartBoss(boss *Boss, player *Player, skills *SkillTree) {
@@ -109,8 +145,9 @@ func (c *TurnCombat) StartBoss(boss *Boss, player *Player, skills *SkillTree) {
 	c.Player = player
 	c.Boss = boss
 	c.Skills = skills
-	c.Potions = 3
-	c.Message = "TON TOUR"
+
+	c.HealthPotions = 3
+	c.ManaPotions = 2
 
 	boss.Attacking = false
 	boss.Moving = false
@@ -122,7 +159,50 @@ func (c *TurnCombat) StartBoss(boss *Boss, player *Player, skills *SkillTree) {
 	player.CurrentWalkFrame = 0
 	player.StopEnergyAnimation()
 
+	c.DecideFirstTurn(player, BossInitiative)
+}
+
+func (c *TurnCombat) DecideFirstTurn(player *Player, opponentInitiative int) {
 	c.FaceCharacters(player)
+
+	c.Timer = 0
+	c.DamageApplied = false
+
+	if opponentInitiative > player.Initiative {
+		c.State = TurnStateEnemy
+
+		c.Message = fmt.Sprintf(
+			"ENNEMI COMMENCE : INITIATIVE %d > %d",
+			opponentInitiative,
+			player.Initiative,
+		)
+
+		c.PrepareEnemyAttack()
+
+		return
+	}
+
+	c.State = TurnStatePlayer
+
+	c.Message = fmt.Sprintf(
+		"TU COMMENCES : INITIATIVE %d >= %d",
+		player.Initiative,
+		opponentInitiative,
+	)
+}
+
+func (c *TurnCombat) PrepareEnemyAttack() {
+	if c.Enemy != nil {
+		c.Enemy.Attacking = true
+		c.Enemy.Moving = false
+		c.Enemy.CurrentFrame = 3
+	}
+
+	if c.Boss != nil {
+		c.Boss.Attacking = true
+		c.Boss.Moving = false
+		c.Boss.CurrentAttackFrame = 1
+	}
 }
 
 func (c *TurnCombat) FaceCharacters(player *Player) {
@@ -156,6 +236,30 @@ func (c *TurnCombat) TargetCenterX() float64 {
 	return 0
 }
 
+func (c *TurnCombat) TargetInitiative() int {
+	if c.Enemy != nil {
+		return c.Enemy.Initiative
+	}
+
+	if c.Boss != nil {
+		return BossInitiative
+	}
+
+	return 0
+}
+
+func (c *TurnCombat) TargetExperienceReward() int {
+	if c.Enemy != nil {
+		return c.Enemy.ExperienceReward
+	}
+
+	if c.Boss != nil {
+		return BossExperienceReward
+	}
+
+	return 0
+}
+
 func (c *TurnCombat) TargetAlive() bool {
 	if c.Enemy != nil {
 		return c.Enemy.Alive && !c.Enemy.Dying
@@ -169,7 +273,11 @@ func (c *TurnCombat) TargetAlive() bool {
 }
 
 func (c *TurnCombat) Update(game *Game) {
-	if !c.Active || game == nil || game.Player == nil {
+	if !c.Active {
+		return
+	}
+
+	if game == nil || game.Player == nil {
 		return
 	}
 
@@ -191,7 +299,6 @@ func (c *TurnCombat) Update(game *Game) {
 			}
 
 			c.Message = "LE GARDIEN LIBERE SA PUISSANCE..."
-
 			c.Boss.UpdatePhaseTransition()
 
 			return
@@ -204,6 +311,7 @@ func (c *TurnCombat) Update(game *Game) {
 
 	if !game.Player.Alive {
 		c.EndCombat(game.Player)
+
 		return
 	}
 
@@ -216,6 +324,9 @@ func (c *TurnCombat) Update(game *Game) {
 
 	case TurnStateEnemy:
 		c.UpdateEnemyTurn(game)
+
+	case TurnStateReward:
+		c.UpdateRewardState(game)
 	}
 }
 
@@ -242,6 +353,7 @@ func (c *TurnCombat) UpdateVisualTimers(player *Player) {
 func (c *TurnCombat) UpdatePlayerTurn(game *Game) {
 	if !c.TargetAlive() {
 		c.EndCombat(game.Player)
+
 		return
 	}
 
@@ -249,14 +361,14 @@ func (c *TurnCombat) UpdatePlayerTurn(game *Game) {
 		c.Selected--
 
 		if c.Selected < 0 {
-			c.Selected = 3
+			c.Selected = 4
 		}
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
 		c.Selected++
 
-		if c.Selected > 3 {
+		if c.Selected > 4 {
 			c.Selected = 0
 		}
 	}
@@ -279,8 +391,11 @@ func (c *TurnCombat) UpdatePlayerTurn(game *Game) {
 		c.Timer = 0
 		c.Message = "TU TE METS EN GARDE"
 
-	case TurnActionItem:
-		c.UsePotion(game)
+	case TurnActionHealthPotion:
+		c.UseHealthPotion(game)
+
+	case TurnActionManaPotion:
+		c.UseManaPotion(game)
 	}
 }
 
@@ -319,6 +434,22 @@ func (c *TurnCombat) StartEnergyAttack(game *Game) {
 
 	player := game.Player
 
+	if player.Mana < RayonManaCost {
+		c.Message = fmt.Sprintf(
+			"MANA INSUFFISANT : %d/%d",
+			player.Mana,
+			RayonManaCost,
+		)
+
+		return
+	}
+
+	if !player.SpendMana(RayonManaCost) {
+		c.Message = "MANA INSUFFISANT"
+
+		return
+	}
+
 	c.FaceCharacters(player)
 
 	player.StartEnergyAnimation()
@@ -338,19 +469,25 @@ func (c *TurnCombat) StartEnergyAttack(game *Game) {
 	c.Timer = 0
 	c.DamageApplied = false
 	c.TargetDefeated = false
-	c.Message = "RAYON D'ELDORIA"
+
+	c.Message = fmt.Sprintf(
+		"RAYON D'ELDORIA  -%d MANA",
+		RayonManaCost,
+	)
 }
 
-func (c *TurnCombat) UsePotion(game *Game) {
+func (c *TurnCombat) UseHealthPotion(game *Game) {
 	player := game.Player
 
-	if c.Potions <= 0 {
-		c.Message = "PLUS DE POTION"
+	if c.HealthPotions <= 0 {
+		c.Message = "PLUS DE POTION DE VIE"
+
 		return
 	}
 
 	if player.HP >= player.MaxHP {
 		c.Message = "TES PV SONT DEJA AU MAXIMUM"
+
 		return
 	}
 
@@ -366,12 +503,49 @@ func (c *TurnCombat) UsePotion(game *Game) {
 		player.HP = player.MaxHP
 	}
 
-	c.Potions--
-	c.PendingAction = TurnActionItem
+	c.HealthPotions--
+
+	c.PendingAction = TurnActionHealthPotion
 	c.State = TurnStatePlayerAction
 	c.Timer = 0
 
-	c.Message = fmt.Sprintf("+%d PV", heal)
+	c.Message = fmt.Sprintf(
+		"+%d PV",
+		heal,
+	)
+}
+
+func (c *TurnCombat) UseManaPotion(game *Game) {
+	player := game.Player
+
+	if c.ManaPotions <= 0 {
+		c.Message = "PLUS DE POTION DE MANA"
+
+		return
+	}
+
+	if player.Mana >= player.ManaMax {
+		c.Message = "TON MANA EST DEJA AU MAXIMUM"
+
+		return
+	}
+
+	restored := player.RestoreMana(ManaPotionRestore)
+
+	if restored <= 0 {
+		return
+	}
+
+	c.ManaPotions--
+
+	c.PendingAction = TurnActionManaPotion
+	c.State = TurnStatePlayerAction
+	c.Timer = 0
+
+	c.Message = fmt.Sprintf(
+		"+%d MANA",
+		restored,
+	)
 }
 
 func (c *TurnCombat) UpdatePlayerAction(game *Game) {
@@ -381,6 +555,10 @@ func (c *TurnCombat) UpdatePlayerAction(game *Game) {
 	case TurnActionAttack:
 		if c.Timer == 12 && !c.DamageApplied {
 			c.ApplyPlayerDamage(game)
+
+			if c.State == TurnStateReward {
+				return
+			}
 		}
 
 		if c.Timer >= 30 {
@@ -389,7 +567,6 @@ func (c *TurnCombat) UpdatePlayerAction(game *Game) {
 			game.Player.AttackTimer = 0
 
 			if c.TargetDefeated {
-				c.EndCombat(game.Player)
 				return
 			}
 
@@ -399,7 +576,17 @@ func (c *TurnCombat) UpdatePlayerAction(game *Game) {
 	case TurnActionSkill:
 		c.UpdateEnergyAnimation(game)
 
-	case TurnActionDefend, TurnActionItem:
+	case TurnActionDefend:
+		if c.Timer >= 18 {
+			c.StartEnemyTurn(game)
+		}
+
+	case TurnActionHealthPotion:
+		if c.Timer >= 18 {
+			c.StartEnemyTurn(game)
+		}
+
+	case TurnActionManaPotion:
 		if c.Timer >= 18 {
 			c.StartEnemyTurn(game)
 		}
@@ -445,7 +632,12 @@ func (c *TurnCombat) UpdateEnergyAnimation(game *Game) {
 
 	if c.Timer == 48 && !c.DamageApplied {
 		c.ApplyPlayerDamage(game)
+
 		game.StartShake(20, 3.2)
+
+		if c.State == TurnStateReward {
+			return
+		}
 	}
 
 	if c.Timer < 72 {
@@ -455,7 +647,6 @@ func (c *TurnCombat) UpdateEnergyAnimation(game *Game) {
 	player.StopEnergyAnimation()
 
 	if c.TargetDefeated {
-		c.EndCombat(player)
 		return
 	}
 
@@ -473,10 +664,7 @@ func (c *TurnCombat) ApplyPlayerDamage(game *Game) {
 	if c.Enemy != nil {
 		box := c.Enemy.HitBox()
 
-		if c.Enemy.Hit(
-			damage,
-			player.X+player.Width/2,
-		) {
+		if c.Enemy.Hit(damage, player.X+player.Width/2) {
 			game.Sounds.PlayImpact()
 
 			game.Impacts = append(
@@ -502,7 +690,7 @@ func (c *TurnCombat) ApplyPlayerDamage(game *Game) {
 
 		if c.Enemy.Dying || !c.Enemy.Alive {
 			c.TargetDefeated = true
-			c.Message = "ENNEMI VAINCU"
+			c.StartRewardState(game)
 		}
 
 		return
@@ -511,10 +699,7 @@ func (c *TurnCombat) ApplyPlayerDamage(game *Game) {
 	if c.Boss != nil {
 		box := c.Boss.HitBox()
 
-		if c.Boss.Hit(
-			damage,
-			player.X+player.Width/2,
-		) {
+		if c.Boss.Hit(damage, player.X+player.Width/2) {
 			game.Sounds.PlayImpact()
 
 			game.Impacts = append(
@@ -544,9 +729,66 @@ func (c *TurnCombat) ApplyPlayerDamage(game *Game) {
 
 		if c.Boss.Dying || !c.Boss.Alive {
 			c.TargetDefeated = true
-			c.Message = "LE GARDIEN EST VAINCU"
+			c.StartRewardState(game)
 		}
 	}
+}
+
+func (c *TurnCombat) StartRewardState(game *Game) {
+	if c.ExperienceAwarded {
+		return
+	}
+
+	c.ExperienceAwarded = true
+
+	c.LastExperienceGain = c.TargetExperienceReward()
+	c.LevelUpsGained = 0
+
+	if c.Player != nil {
+		c.Player.Attacking = false
+		c.Player.AttackTimer = 0
+		c.Player.CurrentAttackFrame = 0
+		c.Player.StopEnergyAnimation()
+	}
+
+	c.StopEnemyAnimation()
+
+	if c.Skills != nil {
+		c.LevelUpsGained = c.Skills.AddExperience(c.LastExperienceGain)
+
+		if c.LevelUpsGained > 0 && game != nil {
+			game.ApplyCurrentLevelProgression()
+		}
+
+		_ = SaveSkillTreeProgress(c.Skills)
+	}
+
+	c.State = TurnStateReward
+	c.Timer = 0
+
+	if c.LevelUpsGained > 0 && c.Skills != nil {
+		c.Message = fmt.Sprintf(
+			"NIVEAU %d !",
+			c.Skills.PlayerLevel,
+		)
+
+		return
+	}
+
+	c.Message = fmt.Sprintf(
+		"+%d XP",
+		c.LastExperienceGain,
+	)
+}
+
+func (c *TurnCombat) UpdateRewardState(game *Game) {
+	c.Timer++
+
+	if c.Timer < 90 {
+		return
+	}
+
+	c.EndCombat(game.Player)
 }
 
 func (c *TurnCombat) StartEnemyTurn(game *Game) {
@@ -558,18 +800,7 @@ func (c *TurnCombat) StartEnemyTurn(game *Game) {
 	c.Message = "TOUR DE L'ENNEMI"
 
 	c.FaceCharacters(game.Player)
-
-	if c.Enemy != nil {
-		c.Enemy.Attacking = true
-		c.Enemy.Moving = false
-		c.Enemy.CurrentFrame = 3
-	}
-
-	if c.Boss != nil {
-		c.Boss.Attacking = true
-		c.Boss.Moving = false
-		c.Boss.CurrentAttackFrame = 1
-	}
+	c.PrepareEnemyAttack()
 }
 
 func (c *TurnCombat) UpdateEnemyTurn(game *Game) {
@@ -594,6 +825,7 @@ func (c *TurnCombat) UpdateEnemyTurn(game *Game) {
 
 		if !game.Player.Alive {
 			c.EndCombat(game.Player)
+
 			return
 		}
 	}
@@ -640,10 +872,7 @@ func (c *TurnCombat) ApplyEnemyDamage(game *Game) {
 
 	player.InvincibleTimer = 0
 
-	if player.Hit(
-		damage,
-		sourceX,
-	) {
+	if player.Hit(damage, sourceX) {
 		game.Sounds.PlayHurt()
 
 		box := player.HitBox()
@@ -718,6 +947,7 @@ func (c *TurnCombat) EndCombat(player *Player) {
 		player.InvincibleTimer = 0
 		player.KnockbackX = 0
 		player.VelocityY = 0
+
 		player.Y = groundY - player.Height
 		player.OnGround = true
 	}
@@ -772,14 +1002,14 @@ func (c *TurnCombat) Draw(screen *ebiten.Image) {
 
 	c.DrawEnergyScreenEffect(screen)
 
-	panelY := 500.0
+	panelY := 490.0
 
 	hudRect(
 		screen,
 		40,
 		panelY,
 		1200,
-		195,
+		205,
 		color.RGBA{
 			R: 5,
 			G: 7,
@@ -812,28 +1042,36 @@ func (c *TurnCombat) Draw(screen *ebiten.Image) {
 		ratio = float64(hp) / float64(maxHP)
 	}
 
+	drawHUDText(screen, targetName, 75, 510)
+	drawMinimalBar(screen, 75, 538, 330, 10, ratio)
+
 	drawHUDText(
 		screen,
-		targetName,
+		fmt.Sprintf(
+			"%d/%d PV",
+			hp,
+			maxHP,
+		),
 		75,
-		520,
-	)
-
-	drawMinimalBar(
-		screen,
-		75,
-		548,
-		330,
-		10,
-		ratio,
+		558,
 	)
 
 	drawHUDText(
 		screen,
-		fmt.Sprintf("%d/%d PV", hp, maxHP),
+		fmt.Sprintf(
+			"INITIATIVE : %d VS %d",
+			c.Player.Initiative,
+			c.TargetInitiative(),
+		),
 		75,
-		568,
+		580,
 	)
+
+	if c.State == TurnStateReward {
+		c.DrawReward(screen)
+
+		return
+	}
 
 	if c.State == TurnStatePlayer {
 		c.DrawPlayerMenu(screen)
@@ -854,27 +1092,79 @@ func (c *TurnCombat) Draw(screen *ebiten.Image) {
 	)
 }
 
+func (c *TurnCombat) DrawReward(screen *ebiten.Image) {
+	hudCenteredText(
+		screen,
+		"COMBAT TERMINE",
+		float64(renderWidth)/2,
+		530,
+	)
+
+	hudCenteredText(
+		screen,
+		fmt.Sprintf(
+			"+%d XP",
+			c.LastExperienceGain,
+		),
+		float64(renderWidth)/2,
+		565,
+	)
+
+	if c.Skills != nil {
+		hudCenteredText(
+			screen,
+			fmt.Sprintf(
+				"XP : %d / %d",
+				c.Skills.CurrentExperience,
+				c.Skills.ExperienceMax,
+			),
+			float64(renderWidth)/2,
+			600,
+		)
+
+		if c.LevelUpsGained > 0 {
+			hudCenteredText(
+				screen,
+				fmt.Sprintf(
+					"NIVEAU %d !",
+					c.Skills.PlayerLevel,
+				),
+				float64(renderWidth)/2,
+				630,
+			)
+
+			hudCenteredText(
+				screen,
+				"BONUS : +10 PV MAX / +3 ATTAQUE",
+				float64(renderWidth)/2,
+				660,
+			)
+		}
+	}
+}
+
 func (c *TurnCombat) DrawPlayerMenu(screen *ebiten.Image) {
 	options := []string{
 		"ATTAQUER",
-		"RAYON D'ELDORIA",
+		fmt.Sprintf("RAYON D'ELDORIA  [%d MANA]", RayonManaCost),
 		"DEFENDRE",
-		fmt.Sprintf("OBJET  x%d", c.Potions),
+		fmt.Sprintf("POTION DE VIE  x%d", c.HealthPotions),
+		fmt.Sprintf("POTION DE MANA  x%d", c.ManaPotions),
 	}
 
-	startX := 495.0
-	startY := 522.0
+	startX := 445.0
+	startY := 505.0
 
 	for i, option := range options {
-		y := startY + float64(i)*34
+		y := startY + float64(i)*31
 
 		if i == c.Selected {
 			hudRect(
 				screen,
 				startX-24,
 				y-5,
-				310,
-				27,
+				355,
+				26,
 				color.RGBA{
 					R: 80,
 					G: 55,
@@ -906,18 +1196,16 @@ func (c *TurnCombat) DrawPlayerMenu(screen *ebiten.Image) {
 			percent = 125
 		}
 
-		drawHUDText(
-			screen,
-			"ATTAQUE NORMALE",
-			825,
-			555,
-		)
+		drawHUDText(screen, "ATTAQUE NORMALE", 840, 530)
 
 		drawHUDText(
 			screen,
-			fmt.Sprintf("%d%% DES DEGATS", percent),
-			825,
-			580,
+			fmt.Sprintf(
+				"%d%% DES DEGATS",
+				percent,
+			),
+			840,
+			555,
 		)
 	}
 
@@ -928,56 +1216,63 @@ func (c *TurnCombat) DrawPlayerMenu(screen *ebiten.Image) {
 			percent = c.Skills.RayPercent()
 		}
 
+		drawHUDText(screen, "RAYON D'ENERGIE", 840, 520)
+
 		drawHUDText(
 			screen,
-			"RAYON D'ENERGIE",
-			825,
-			555,
+			fmt.Sprintf(
+				"%d%% DES DEGATS",
+				percent,
+			),
+			840,
+			545,
 		)
 
 		drawHUDText(
 			screen,
-			fmt.Sprintf("%d%% DES DEGATS", percent),
-			825,
-			580,
+			fmt.Sprintf(
+				"COUT : %d MANA",
+				RayonManaCost,
+			),
+			840,
+			570,
+		)
+
+		drawHUDText(
+			screen,
+			fmt.Sprintf(
+				"MANA : %d/%d",
+				c.Player.Mana,
+				c.Player.ManaMax,
+			),
+			840,
+			595,
 		)
 
 		if c.SkillCooldown > 0 {
 			drawHUDText(
 				screen,
-				fmt.Sprintf("RECHARGE : %d TOUR(S)", c.SkillCooldown),
-				825,
-				605,
+				fmt.Sprintf(
+					"RECHARGE : %d TOUR(S)",
+					c.SkillCooldown,
+				),
+				840,
+				620,
 			)
 		}
 	}
 
 	if c.Selected == TurnActionDefend {
 		if c.Skills != nil && c.Skills.Has(SkillDefense2) {
-			drawHUDText(
-				screen,
-				"REDUIT 70% DES DEGATS",
-				825,
-				555,
-			)
+			drawHUDText(screen, "REDUIT 70% DES DEGATS", 840, 540)
 		} else {
-			drawHUDText(
-				screen,
-				"REDUIT DE MOITIE",
-				825,
-				555,
-			)
+			drawHUDText(screen, "REDUIT DE MOITIE", 840, 540)
 		}
 
-		drawHUDText(
-			screen,
-			"LE PROCHAIN COUP",
-			825,
-			580,
-		)
+		drawHUDText(screen, "LE PROCHAIN COUP", 840, 565)
 	}
 
-	if c.Selected == TurnActionItem {
+	if c.Selected == TurnActionHealthPotion {
 		heal := 30
 
 		if c.Skills != nil {
@@ -986,25 +1281,40 @@ func (c *TurnCombat) DrawPlayerMenu(screen *ebiten.Image) {
 
 		drawHUDText(
 			screen,
-			fmt.Sprintf("RESTAURE %d PV", heal),
-			825,
-			555,
+			fmt.Sprintf(
+				"RESTAURE %d PV",
+				heal,
+			),
+			840,
+			545,
 		)
 	}
 
-	drawHUDText(
-		screen,
-		"FLECHES : CHOISIR",
-		825,
-		630,
-	)
+	if c.Selected == TurnActionManaPotion {
+		drawHUDText(
+			screen,
+			fmt.Sprintf(
+				"RESTAURE %d MANA",
+				ManaPotionRestore,
+			),
+			840,
+			545,
+		)
 
-	drawHUDText(
-		screen,
-		"ENTREE : VALIDER",
-		825,
-		652,
-	)
+		drawHUDText(
+			screen,
+			fmt.Sprintf(
+				"MANA : %d/%d",
+				c.Player.Mana,
+				c.Player.ManaMax,
+			),
+			840,
+			570,
+		)
+	}
+
+	drawHUDText(screen, "FLECHES : CHOISIR", 840, 645)
+	drawHUDText(screen, "ENTREE : VALIDER", 840, 668)
 }
 
 func (c *TurnCombat) DrawEnergyScreenEffect(screen *ebiten.Image) {
@@ -1030,6 +1340,7 @@ func (c *TurnCombat) DrawEnergyScreenEffect(screen *ebiten.Image) {
 
 	if c.Player.CurrentEnergyFrame <= 3 {
 		c.DrawEnergyChargeGlow(screen)
+
 		return
 	}
 

@@ -26,6 +26,7 @@ const (
 	MenuActionNone = iota
 	MenuActionContinue
 	MenuActionPlay
+	MenuActionDungeon
 	MenuActionOptions
 	MenuActionQuit
 )
@@ -54,6 +55,7 @@ func NewMainMenu() *MainMenu {
 		Items: []string{
 			"CONTINUER",
 			"NOUVELLE PARTIE",
+			"DONJON",
 			"OPTIONS",
 			"QUITTER",
 		},
@@ -103,9 +105,12 @@ func (m *MainMenu) Update() int {
 			return MenuActionPlay
 
 		case 2:
-			return MenuActionOptions
+			return MenuActionDungeon
 
 		case 3:
+			return MenuActionOptions
+
+		case 4:
 			return MenuActionQuit
 		}
 	}
@@ -115,7 +120,15 @@ func (m *MainMenu) Update() int {
 
 func drawMenuBackgroundCover(screen *ebiten.Image, background *ebiten.Image) {
 	if background == nil {
-		screen.Fill(color.RGBA{R: 5, G: 7, B: 12, A: 255})
+		screen.Fill(
+			color.RGBA{
+				R: 5,
+				G: 7,
+				B: 12,
+				A: 255,
+			},
+		)
+
 		return
 	}
 
@@ -135,18 +148,34 @@ func drawMenuBackgroundCover(screen *ebiten.Image, background *ebiten.Image) {
 
 	options := &ebiten.DrawImageOptions{}
 
-	options.GeoM.Scale(scale, scale)
-	options.GeoM.Translate((screenWidth-drawWidth)/2, (screenHeight-drawHeight)/2)
+	options.GeoM.Scale(
+		scale,
+		scale,
+	)
+
+	options.GeoM.Translate(
+		(screenWidth-drawWidth)/2,
+		(screenHeight-drawHeight)/2,
+	)
+
 	options.Filter = ebiten.FilterLinear
 
-	screen.DrawImage(background, options)
+	screen.DrawImage(
+		background,
+		options,
+	)
 }
 
 func drawCenteredMenuText(screen *ebiten.Image, text string, y int) {
 	width := len(text) * 6
 	x := (320 - width) / 2
 
-	ebitenutil.DebugPrintAt(screen, text, x, y)
+	ebitenutil.DebugPrintAt(
+		screen,
+		text,
+		x,
+		y,
+	)
 }
 
 func drawMenuButton(screen *ebiten.Image, text string, x float64, y float64, width float64, height float64, selected bool) {
@@ -180,18 +209,42 @@ func drawMenuButton(screen *ebiten.Image, text string, x float64, y float64, wid
 		}
 	}
 
-	ebitenutil.DrawRect(screen, x-1, y-1, width+2, height+2, borderColor)
-	ebitenutil.DrawRect(screen, x, y, width, height, backgroundColor)
+	ebitenutil.DrawRect(
+		screen,
+		x-1,
+		y-1,
+		width+2,
+		height+2,
+		borderColor,
+	)
+
+	ebitenutil.DrawRect(
+		screen,
+		x,
+		y,
+		width,
+		height,
+		backgroundColor,
+	)
 
 	textWidth := len(text) * 6
+
 	textX := int(x) + (int(width)-textWidth)/2
 	textY := int(y) + int(height)/2 - 4
 
-	ebitenutil.DebugPrintAt(screen, text, textX, textY)
+	ebitenutil.DebugPrintAt(
+		screen,
+		text,
+		textX,
+		textY,
+	)
 }
 
 func (m *MainMenu) Draw(screen *ebiten.Image) {
-	drawMenuBackgroundCover(screen, m.Image)
+	drawMenuBackgroundCover(
+		screen,
+		m.Image,
+	)
 
 	panelColor := color.RGBA{
 		R: 4,
@@ -207,45 +260,121 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 		A: 255,
 	}
 
-	ebitenutil.DrawRect(screen, 77, 5, 166, 169, borderColor)
-	ebitenutil.DrawRect(screen, 78, 6, 164, 167, panelColor)
+	ebitenutil.DrawRect(
+		screen,
+		77,
+		5,
+		166,
+		169,
+		borderColor,
+	)
 
-	drawCenteredMenuText(screen, "E L D O R I A", 17)
-	drawCenteredMenuText(screen, "LE ROYAUME OUBLIE", 31)
+	ebitenutil.DrawRect(
+		screen,
+		78,
+		6,
+		164,
+		167,
+		panelColor,
+	)
+
+	drawCenteredMenuText(
+		screen,
+		"E L D O R I A",
+		14,
+	)
+
+	drawCenteredMenuText(
+		screen,
+		"LE ROYAUME OUBLIE",
+		27,
+	)
 
 	buttonX := 91.0
 	buttonWidth := 138.0
-	buttonHeight := 18.0
+	buttonHeight := 17.0
 
 	positions := []float64{
-		47,
-		71,
-		95,
-		119,
+		41,
+		62,
+		83,
+		104,
+		125,
 	}
 
 	for i, item := range m.Items {
 		selected := m.Selected == i
 
 		if i == 0 && !HasSave() {
-			ebitenutil.DrawRect(screen, buttonX-1, positions[i]-1, buttonWidth+2, buttonHeight+2, color.RGBA{R: 45, G: 45, B: 50, A: 255})
-			ebitenutil.DrawRect(screen, buttonX, positions[i], buttonWidth, buttonHeight, color.RGBA{R: 15, G: 15, B: 18, A: 210})
+			ebitenutil.DrawRect(
+				screen,
+				buttonX-1,
+				positions[i]-1,
+				buttonWidth+2,
+				buttonHeight+2,
+				color.RGBA{
+					R: 45,
+					G: 45,
+					B: 50,
+					A: 255,
+				},
+			)
+
+			ebitenutil.DrawRect(
+				screen,
+				buttonX,
+				positions[i],
+				buttonWidth,
+				buttonHeight,
+				color.RGBA{
+					R: 15,
+					G: 15,
+					B: 18,
+					A: 210,
+				},
+			)
 
 			textWidth := len(item) * 6
 			textX := int(buttonX) + (int(buttonWidth)-textWidth)/2
 
-			ebitenutil.DebugPrintAt(screen, item, textX, int(positions[i])+5)
+			ebitenutil.DebugPrintAt(
+				screen,
+				item,
+				textX,
+				int(positions[i])+4,
+			)
+
 			continue
 		}
 
-		drawMenuButton(screen, item, buttonX, positions[i], buttonWidth, buttonHeight, selected)
+		drawMenuButton(
+			screen,
+			item,
+			buttonX,
+			positions[i],
+			buttonWidth,
+			buttonHeight,
+			selected,
+		)
 	}
 
 	if !HasSave() {
-		drawCenteredMenuText(screen, "Aucune sauvegarde", 145)
+		drawCenteredMenuText(
+			screen,
+			"Aucune sauvegarde",
+			148,
+		)
 	} else {
-		drawCenteredMenuText(screen, "Sauvegarde disponible", 145)
+		drawCenteredMenuText(
+			screen,
+			"Sauvegarde disponible",
+			148,
+		)
 	}
 
-	drawCenteredMenuText(screen, "FLECHES + ENTREE", 158)
+	drawCenteredMenuText(
+		screen,
+		"FLECHES + ENTREE",
+		160,
+	)
 }

@@ -125,11 +125,16 @@ type Player struct {
 	AttackHit          bool
 	AttackDamage       int
 
-	HurtTimer    int
-	HurtDuration int
+	Initiative int
 
 	HP    int
 	MaxHP int
+
+	Mana    int
+	ManaMax int
+
+	HurtTimer    int
+	HurtDuration int
 
 	Alive bool
 
@@ -240,6 +245,7 @@ func findPlayerFootY(img image.Image, content image.Rectangle) float64 {
 
 func loadPlayerFrame(data []byte) (*ebiten.Image, image.Rectangle, float64) {
 	img, _, err := image.Decode(bytes.NewReader(data))
+
 	if err != nil {
 		panic(err)
 	}
@@ -407,11 +413,16 @@ func NewPlayer() *Player {
 		AttackHit:          false,
 		AttackDamage:       50,
 
-		HurtTimer:    0,
-		HurtDuration: 12,
+		Initiative: 10,
 
 		HP:    100,
 		MaxHP: 100,
+
+		Mana:    100,
+		ManaMax: 100,
+
+		HurtTimer:    0,
+		HurtDuration: 12,
 
 		Alive: true,
 
@@ -431,6 +442,40 @@ func NewPlayer() *Player {
 
 		DodgeDustParticles: []DodgeDust{},
 	}
+}
+
+func (p *Player) SpendMana(amount int) bool {
+	if amount <= 0 {
+		return true
+	}
+
+	if p.Mana < amount {
+		return false
+	}
+
+	p.Mana -= amount
+
+	if p.Mana < 0 {
+		p.Mana = 0
+	}
+
+	return true
+}
+
+func (p *Player) RestoreMana(amount int) int {
+	if amount <= 0 {
+		return 0
+	}
+
+	before := p.Mana
+
+	p.Mana += amount
+
+	if p.Mana > p.ManaMax {
+		p.Mana = p.ManaMax
+	}
+
+	return p.Mana - before
 }
 
 func (p *Player) Update() {
@@ -506,6 +551,7 @@ func (p *Player) Update() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyShiftLeft) || inpututil.IsKeyJustPressed(ebiten.KeyShiftRight) {
 		if p.OnGround && p.DodgeCooldownTimer <= 0 {
 			p.StartDodge(leftPressed, rightPressed)
+
 			return
 		}
 	}
@@ -726,6 +772,7 @@ func (p *Player) UpdateWalkAnimation() {
 		p.CurrentWalkFrame = 0
 		p.WalkFrameTimer = 0
 		p.WalkSequenceStep = 0
+
 		return
 	}
 

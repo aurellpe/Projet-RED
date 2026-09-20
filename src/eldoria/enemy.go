@@ -59,6 +59,10 @@ type Enemy struct {
 
 	Damage int
 
+	Initiative int
+
+	ExperienceReward int
+
 	Alive bool
 
 	Dying         bool
@@ -140,11 +144,19 @@ func findEnemyContentBounds(img image.Image) image.Rectangle {
 		return bounds
 	}
 
-	return image.Rect(minX, minY, maxX+1, maxY+1)
+	return image.Rect(
+		minX,
+		minY,
+		maxX+1,
+		maxY+1,
+	)
 }
 
 func loadEnemyFrame(data []byte) (*ebiten.Image, image.Rectangle) {
-	img, _, err := image.Decode(bytes.NewReader(data))
+	img, _, err := image.Decode(
+		bytes.NewReader(data),
+	)
+
 	if err != nil {
 		panic(err)
 	}
@@ -183,12 +195,18 @@ func newEnemyWithType(x float64, enemyType int) *Enemy {
 	frameSpeed := 7
 	attackRange := 32
 
+	initiative := 8
+	experienceReward := 30
+
 	switch enemyType {
 	case EnemyTypeFast:
 		speed = 0.72
 		hp = 70
 		damage = 8
 		frameSpeed = 5
+
+		initiative = 15
+		experienceReward = 45
 
 	case EnemyTypeHeavy:
 		scale = 0.065
@@ -200,12 +218,18 @@ func newEnemyWithType(x float64, enemyType int) *Enemy {
 		frameSpeed = 9
 		attackRange = 38
 
+		initiative = 5
+		experienceReward = 70
+
 	case EnemyTypeRanged:
 		speed = 0.34
 		hp = 80
 		damage = 12
 		frameSpeed = 7
 		attackRange = 100
+
+		initiative = 11
+		experienceReward = 55
 	}
 
 	visualHeight := float64(bounds1.Dy()) * scale
@@ -228,6 +252,10 @@ func newEnemyWithType(x float64, enemyType int) *Enemy {
 		MaxHP: hp,
 
 		Damage: damage,
+
+		Initiative: initiative,
+
+		ExperienceReward: experienceReward,
 
 		Alive: true,
 
@@ -267,19 +295,31 @@ func newEnemyWithType(x float64, enemyType int) *Enemy {
 }
 
 func NewEnemy(x float64) *Enemy {
-	return newEnemyWithType(x, EnemyTypeNormal)
+	return newEnemyWithType(
+		x,
+		EnemyTypeNormal,
+	)
 }
 
 func NewFastEnemy(x float64) *Enemy {
-	return newEnemyWithType(x, EnemyTypeFast)
+	return newEnemyWithType(
+		x,
+		EnemyTypeFast,
+	)
 }
 
 func NewHeavyEnemy(x float64) *Enemy {
-	return newEnemyWithType(x, EnemyTypeHeavy)
+	return newEnemyWithType(
+		x,
+		EnemyTypeHeavy,
+	)
 }
 
 func NewRangedEnemy(x float64) *Enemy {
-	return newEnemyWithType(x, EnemyTypeRanged)
+	return newEnemyWithType(
+		x,
+		EnemyTypeRanged,
+	)
 }
 
 func (e *Enemy) Update(player *Player) int {
@@ -321,11 +361,13 @@ func (e *Enemy) Update(player *Player) int {
 		e.Moving = false
 		e.Attacking = false
 		e.CurrentFrame = 0
+
 		return 0
 	}
 
 	if e.Attacking {
 		e.Moving = false
+
 		return e.UpdateAttack(player)
 	}
 
@@ -342,7 +384,10 @@ func (e *Enemy) Update(player *Player) int {
 	}
 
 	if e.Type == EnemyTypeRanged {
-		e.UpdateRangedMovement(distance, absoluteDistance)
+		e.UpdateRangedMovement(
+			distance,
+			absoluteDistance,
+		)
 
 		if absoluteDistance >= 65 && absoluteDistance <= 125 && e.AttackCooldown <= 0 {
 			e.StartAttack()
@@ -436,12 +481,18 @@ func (e *Enemy) UpdateAttack(player *Player) int {
 		attackBox := e.AttackBox()
 		playerBox := player.HitBox()
 
-		if Intersects(attackBox, playerBox) {
+		if Intersects(
+			attackBox,
+			playerBox,
+		) {
 			e.AttackHit = true
 
 			enemyCenter := e.X + e.Width/2
 
-			if player.Hit(e.Damage, enemyCenter) {
+			if player.Hit(
+				e.Damage,
+				enemyCenter,
+			) {
 				return e.Damage
 			}
 		}
@@ -492,6 +543,7 @@ func (e *Enemy) UpdateProjectile(player *Player) int {
 
 	if e.ProjectileX < -10 || e.ProjectileX > screenWidth+10 {
 		e.ProjectileActive = false
+
 		return 0
 	}
 
@@ -506,13 +558,19 @@ func (e *Enemy) UpdateProjectile(player *Player) int {
 		H: 4,
 	}
 
-	if !Intersects(projectileBox, player.HitBox()) {
+	if !Intersects(
+		projectileBox,
+		player.HitBox(),
+	) {
 		return 0
 	}
 
 	e.ProjectileActive = false
 
-	if player.Hit(e.Damage, e.X+e.Width/2) {
+	if player.Hit(
+		e.Damage,
+		e.X+e.Width/2,
+	) {
 		return e.Damage
 	}
 
@@ -523,6 +581,7 @@ func (e *Enemy) UpdateWalkAnimation() {
 	if !e.Moving {
 		e.CurrentFrame = 0
 		e.FrameTimer = 0
+
 		return
 	}
 
@@ -615,7 +674,6 @@ func (e *Enemy) Hit(damage int, attackerX float64) bool {
 		e.Attacking = false
 		e.Moving = false
 		e.ProjectileActive = false
-
 		e.CurrentFrame = 0
 
 		e.SpawnDeathParticles()
@@ -641,7 +699,10 @@ func (e *Enemy) SpawnDeathParticles() {
 			MaxLife: 30 + i%8,
 		}
 
-		e.DeathParticles = append(e.DeathParticles, particle)
+		e.DeathParticles = append(
+			e.DeathParticles,
+			particle,
+		)
 	}
 }
 
@@ -656,7 +717,10 @@ func (e *Enemy) UpdateDeathParticles() {
 		particle.Life--
 
 		if particle.Life > 0 {
-			active = append(active, particle)
+			active = append(
+				active,
+				particle,
+			)
 		}
 	}
 
@@ -684,7 +748,9 @@ func (e *Enemy) DrawDeathParticles(screen *ebiten.Image) {
 	for _, particle := range e.DeathParticles {
 		ratio := float64(particle.Life) / float64(particle.MaxLife)
 
-		alpha := uint8(200 * ratio)
+		alpha := uint8(
+			200 * ratio,
+		)
 
 		particleColor := color.RGBA{
 			R: 100,
@@ -720,7 +786,14 @@ func (e *Enemy) DrawDeathParticles(screen *ebiten.Image) {
 			}
 		}
 
-		ebitenutil.DrawRect(screen, particle.X, particle.Y, 2, 2, particleColor)
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y,
+			2,
+			2,
+			particleColor,
+		)
 	}
 }
 
@@ -775,7 +848,9 @@ func (e *Enemy) Draw(screen *ebiten.Image) {
 	img := e.Frames[frameIndex]
 	contentBounds := e.FrameBounds[frameIndex]
 
-	contentHeight := float64(contentBounds.Dy())
+	contentHeight := float64(
+		contentBounds.Dy(),
+	)
 
 	if contentHeight <= 0 {
 		return
@@ -799,41 +874,84 @@ func (e *Enemy) Draw(screen *ebiten.Image) {
 		}
 
 		bottomY += progress * 10
-		deathAlpha = float32(1 - progress)
+
+		deathAlpha = float32(
+			1 - progress,
+		)
 	}
 
 	options := &ebiten.DrawImageOptions{}
 
-	options.GeoM.Translate(-anchorX, -anchorY)
+	options.GeoM.Translate(
+		-anchorX,
+		-anchorY,
+	)
 
 	if e.FacingLeft {
-		options.GeoM.Scale(-frameScale, frameScale)
+		options.GeoM.Scale(
+			-frameScale,
+			frameScale,
+		)
 	} else {
-		options.GeoM.Scale(frameScale, frameScale)
+		options.GeoM.Scale(
+			frameScale,
+			frameScale,
+		)
 	}
 
-	options.GeoM.Translate(centerX, bottomY)
+	options.GeoM.Translate(
+		centerX,
+		bottomY,
+	)
 
 	switch e.Type {
 	case EnemyTypeFast:
-		options.ColorScale.Scale(0.85, 1, 1.15, 1)
+		options.ColorScale.Scale(
+			0.85,
+			1,
+			1.15,
+			1,
+		)
 
 	case EnemyTypeHeavy:
-		options.ColorScale.Scale(1.15, 0.78, 0.78, 1)
+		options.ColorScale.Scale(
+			1.15,
+			0.78,
+			0.78,
+			1,
+		)
 
 	case EnemyTypeRanged:
-		options.ColorScale.Scale(1.05, 0.80, 1.20, 1)
+		options.ColorScale.Scale(
+			1.05,
+			0.80,
+			1.20,
+			1,
+		)
 	}
 
 	if e.FlashTimer > 0 {
-		options.ColorScale.Scale(2, 2, 2, 1)
+		options.ColorScale.Scale(
+			2,
+			2,
+			2,
+			1,
+		)
 	}
 
 	if e.Dying {
-		options.ColorScale.Scale(1, 1, 1, deathAlpha)
+		options.ColorScale.Scale(
+			1,
+			1,
+			1,
+			deathAlpha,
+		)
 	}
 
-	screen.DrawImage(img, options)
+	screen.DrawImage(
+		img,
+		options,
+	)
 
 	if e.Dying {
 		return

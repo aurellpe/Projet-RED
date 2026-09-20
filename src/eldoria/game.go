@@ -26,60 +26,48 @@ var level3BackgroundData []byte
 var bossBackgroundData []byte
 
 type Game struct {
-	State   int
-	Menu    *MainMenu
-	Options *OptionsMenu
-
-	Paused           bool
-	PauseMenu        *PauseMenu
-	OptionsFromPause bool
-
-	Player *Player
-
-	Levels       []Level
-	CurrentLevel int
-
-	Backgrounds []*ebiten.Image
-
-	Boss    *Boss
-	Enemies []*Enemy
-	Exit    *Exit
-	Pickups []*Pickup
-
-	DamageTexts []*DamageText
-	Impacts     []*Impact
-
-	Sounds     *SoundManager
-	Music      *MusicManager
-	World      *ebiten.Image
-	Atmosphere *Atmosphere
-	Story      *StoryManager
-	Combat     *TurnCombat
-	Puzzle     *DoorPuzzle
-	SkillTree  *SkillTree
-
-	ShakeTimer    int
-	ShakeStrength float64
-
-	HitStopTimer int
-
-	Transitioning   bool
-	TransitionTimer int
-	NextLevel       int
-
-	HealMessageTimer int
-	LastHealAmount   int
-
-	AutosaveTimer int
-
+	State               int
+	Menu                *MainMenu
+	Options             *OptionsMenu
+	Paused              bool
+	PauseMenu           *PauseMenu
+	OptionsFromPause    bool
+	Player              *Player
+	Levels              []Level
+	CurrentLevel        int
+	Backgrounds         []*ebiten.Image
+	Boss                *Boss
+	Enemies             []*Enemy
+	Exit                *Exit
+	Pickups             []*Pickup
+	DamageTexts         []*DamageText
+	Impacts             []*Impact
+	Sounds              *SoundManager
+	Music               *MusicManager
+	World               *ebiten.Image
+	Atmosphere          *Atmosphere
+	Story               *StoryManager
+	Combat              *TurnCombat
+	Puzzle              *DoorPuzzle
+	SkillTree           *SkillTree
+	Dungeon             *TrainingDungeon
+	ShakeTimer          int
+	ShakeStrength       float64
+	HitStopTimer        int
+	Transitioning       bool
+	TransitionTimer     int
+	NextLevel           int
+	HealMessageTimer    int
+	LastHealAmount      int
+	AutosaveTimer       int
 	UpgradeMessage      string
 	UpgradeMessageTimer int
-
-	VictorySoundPlayed bool
+	VictorySoundPlayed  bool
 }
 
 func loadBackground(data []byte) *ebiten.Image {
 	img, _, err := image.Decode(bytes.NewReader(data))
+
 	if err != nil {
 		panic(err)
 	}
@@ -126,6 +114,7 @@ func NewGame() *Game {
 		Combat:             NewTurnCombat(),
 		Puzzle:             nil,
 		SkillTree:          LoadSkillTreeProgress(),
+		Dungeon:            NewTrainingDungeon(),
 		AutosaveTimer:      0,
 		VictorySoundPlayed: false,
 	}
@@ -157,6 +146,9 @@ func (g *Game) UpdateMainMenu() error {
 		g.RestartGame()
 		g.State = GameStatePlaying
 
+	case MenuActionDungeon:
+		g.StartTrainingDungeon()
+
 	case MenuActionOptions:
 		g.OptionsFromPause = false
 		g.State = GameStateOptions
@@ -181,6 +173,10 @@ func (g *Game) ContinueGame() {
 
 	if save.CurrentLevel < 0 || save.CurrentLevel >= len(g.Levels) {
 		return
+	}
+
+	if g.Dungeon != nil {
+		g.Dungeon.Reset()
 	}
 
 	g.CurrentLevel = save.CurrentLevel
@@ -275,7 +271,10 @@ func (g *Game) UpdatePauseMenu() error {
 }
 
 func (g *Game) UpdateOptionsMenu() error {
-	action := g.Options.Update(g.Music, g.Sounds)
+	action := g.Options.Update(
+		g.Music,
+		g.Sounds,
+	)
 
 	if action != OptionsActionBack {
 		return nil
@@ -285,6 +284,7 @@ func (g *Game) UpdateOptionsMenu() error {
 		g.State = GameStatePlaying
 		g.Paused = true
 		g.OptionsFromPause = false
+
 		return nil
 	}
 
@@ -311,6 +311,7 @@ func (g *Game) UpdateMusic() {
 		}
 
 		g.Music.PlayBoss()
+
 		return
 	}
 
@@ -326,6 +327,7 @@ func (g *Game) ApplyCurrentLevelProgression() {
 
 	targetMaxHP := 100 + levelIndex*10
 	baseAttack := 50 + levelIndex*5
+
 	targetSpeed := 1.5 + float64(levelIndex)*0.08
 	targetDodgeSpeed := 4.0 + float64(levelIndex)*0.15
 	targetDodgeCooldown := 38 - levelIndex*3
@@ -371,6 +373,10 @@ func (g *Game) UpdateAutoSave() {
 		return
 	}
 
+	if g.Dungeon != nil && g.Dungeon.Active {
+		return
+	}
+
 	if g.Paused || g.Transitioning {
 		return
 	}
@@ -400,6 +406,7 @@ func (g *Game) UpdateAutoSave() {
 	if g.AutosaveTimer >= 120 {
 		_ = SaveGame(g)
 		_ = SaveSkillTreeProgress(g.SkillTree)
+
 		g.AutosaveTimer = 0
 	}
 }
@@ -411,7 +418,9 @@ func (g *Game) UpdateAtmosphere() {
 
 	level := g.Levels[g.CurrentLevel]
 
-	g.Atmosphere.Update(level.Number)
+	g.Atmosphere.Update(
+		level.Number,
+	)
 }
 
 func (g *Game) SetupCurrentLevel() {
@@ -419,6 +428,7 @@ func (g *Game) SetupCurrentLevel() {
 
 	g.Player.X = 15
 	g.Player.Y = groundY - g.Player.Height
+
 	g.Player.VelocityY = 0
 	g.Player.OnGround = true
 
@@ -438,6 +448,7 @@ func (g *Game) SetupCurrentLevel() {
 
 	g.Boss = nil
 	g.Enemies = []*Enemy{}
+
 	g.Exit = nil
 	g.Pickups = []*Pickup{}
 	g.Puzzle = nil
@@ -462,7 +473,9 @@ func (g *Game) SetupCurrentLevel() {
 	level := g.Levels[g.CurrentLevel]
 
 	if g.Atmosphere != nil {
-		g.Atmosphere.Reset(level.Number)
+		g.Atmosphere.Reset(
+			level.Number,
+		)
 	}
 
 	if level.HasBoss {
@@ -537,10 +550,15 @@ func (g *Game) StartShake(duration int, strength float64) {
 }
 
 func (g *Game) RestartGame() {
+	if g.Dungeon != nil {
+		g.Dungeon.Reset()
+	}
+
 	_ = DeleteSave()
 	_ = DeleteSkillTreeProgress()
 
 	g.CurrentLevel = 0
+
 	g.Player = NewPlayer()
 	g.SkillTree = NewSkillTree()
 
@@ -569,6 +587,10 @@ func (g *Game) RestartGame() {
 }
 
 func (g *Game) RestartCurrentLevel() {
+	if g.Dungeon != nil {
+		g.Dungeon.Reset()
+	}
+
 	g.Player = NewPlayer()
 
 	g.Paused = false
@@ -592,10 +614,13 @@ func (g *Game) StartLevelTransition() {
 	}
 
 	if g.SkillTree != nil {
-		g.SkillTree.AwardLevelCompletion(g.CurrentLevel)
+		g.SkillTree.AwardLevelCompletion(
+			g.CurrentLevel,
+		)
 	}
 
 	g.NextLevel = g.CurrentLevel + 1
+
 	g.Transitioning = true
 	g.TransitionTimer = 0
 }
@@ -629,7 +654,9 @@ func (g *Game) UpdatePickups() {
 			continue
 		}
 
-		healed := pickup.Update(g.Player)
+		healed := pickup.Update(
+			g.Player,
+		)
 
 		if healed > 0 {
 			g.LastHealAmount = healed
@@ -646,7 +673,10 @@ func (g *Game) UpdatePickups() {
 
 	for _, pickup := range g.Pickups {
 		if !pickup.Collected {
-			activePickups = append(activePickups, pickup)
+			activePickups = append(
+				activePickups,
+				pickup,
+			)
 		}
 	}
 
@@ -660,7 +690,10 @@ func (g *Game) UpdateImpacts() {
 		impact.Update()
 
 		if impact.Alive() {
-			activeImpacts = append(activeImpacts, impact)
+			activeImpacts = append(
+				activeImpacts,
+				impact,
+			)
 		}
 	}
 
@@ -674,7 +707,10 @@ func (g *Game) UpdateDamageTexts() {
 		damageText.Update()
 
 		if damageText.Alive() {
-			activeTexts = append(activeTexts, damageText)
+			activeTexts = append(
+				activeTexts,
+				damageText,
+			)
 		}
 	}
 
@@ -700,6 +736,12 @@ func (g *Game) Update() error {
 		return g.UpdateOptionsMenu()
 	}
 
+	if g.Dungeon != nil && g.Dungeon.Active {
+		g.SyncGround()
+
+		return g.UpdateTrainingDungeon()
+	}
+
 	g.SyncGround()
 	g.UpdateMusic()
 
@@ -716,11 +758,13 @@ func (g *Game) Update() error {
 	if g.Story != nil && g.Story.Active {
 		g.UpdateAtmosphere()
 		g.Story.Update()
+
 		return nil
 	}
 
 	if g.Puzzle != nil && g.Puzzle.Active {
 		g.UpdateAtmosphere()
+
 		g.Puzzle.Update()
 
 		if g.Exit != nil && g.Puzzle.Solved {
@@ -787,7 +831,9 @@ func (g *Game) Update() error {
 
 	if g.SkillTree != nil && g.SkillTree.Open {
 		g.UpdateAtmosphere()
+
 		g.SkillTree.Update(g)
+
 		return nil
 	}
 
@@ -802,6 +848,7 @@ func (g *Game) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		g.Paused = true
 		g.PauseMenu.Selected = 0
+
 		return nil
 	}
 
@@ -822,7 +869,9 @@ func (g *Game) Update() error {
 
 	if g.Transitioning {
 		g.UpdateAtmosphere()
+
 		g.UpdateTransition()
+
 		return nil
 	}
 
@@ -847,6 +896,7 @@ func (g *Game) Update() error {
 
 	if level.HasBoss {
 		g.UpdateBossLevel()
+
 		g.UpdatePickups()
 		g.UpdateDamageTexts()
 		g.UpdateImpacts()
@@ -876,7 +926,10 @@ func (g *Game) UpdateBossLevel() {
 	}
 
 	if g.Boss.Dying {
-		g.Boss.Update(g.Player)
+		g.Boss.Update(
+			g.Player,
+		)
+
 		return
 	}
 
@@ -896,14 +949,18 @@ func (g *Game) UpdateBossLevel() {
 func (g *Game) UpdateNormalEnemies() {
 	for _, enemy := range g.Enemies {
 		if enemy.Dying {
-			enemy.Update(g.Player)
+			enemy.Update(
+				g.Player,
+			)
 
 			if !enemy.Alive && !enemy.DeathRewarded {
 				enemy.DeathRewarded = true
 
 				g.Pickups = append(
 					g.Pickups,
-					NewHealthPotion(enemy.X+enemy.Width/2-6),
+					NewHealthPotion(
+						enemy.X+enemy.Width/2-6,
+					),
 				)
 			}
 
@@ -916,7 +973,9 @@ func (g *Game) UpdateNormalEnemies() {
 
 				g.Pickups = append(
 					g.Pickups,
-					NewHealthPotion(enemy.X+enemy.Width/2-6),
+					NewHealthPotion(
+						enemy.X+enemy.Width/2-6,
+					),
 				)
 			}
 
@@ -931,7 +990,9 @@ func (g *Game) UpdateNormalEnemies() {
 		playerCenter := g.Player.X + g.Player.Width/2
 		enemyCenter := enemy.X + enemy.Width/2
 
-		distance := math.Abs(playerCenter - enemyCenter)
+		distance := math.Abs(
+			playerCenter - enemyCenter,
+		)
 
 		if distance <= 46 {
 			if g.Combat != nil {
@@ -957,6 +1018,7 @@ func (g *Game) UpdateExit() {
 	if !allEnemiesDead {
 		g.Exit.Active = false
 		g.Exit.Update()
+
 		return
 	}
 
@@ -991,7 +1053,11 @@ func (g *Game) drawWorldToScreen(screen *ebiten.Image) {
 	scaleX := float64(renderWidth) / 320
 	scaleY := float64(renderHeight) / 180
 
-	options.GeoM.Scale(scaleX, scaleY)
+	options.GeoM.Scale(
+		scaleX,
+		scaleY,
+	)
+
 	options.Filter = ebiten.FilterNearest
 
 	if g.ShakeTimer > 0 {
@@ -1014,7 +1080,10 @@ func (g *Game) drawWorldToScreen(screen *ebiten.Image) {
 			shakeY = -g.ShakeStrength
 		}
 
-		options.GeoM.Translate(shakeX*scaleX, shakeY*scaleY)
+		options.GeoM.Translate(
+			shakeX*scaleX,
+			shakeY*scaleY,
+		)
 	}
 
 	screen.Fill(
@@ -1026,7 +1095,10 @@ func (g *Game) drawWorldToScreen(screen *ebiten.Image) {
 		},
 	)
 
-	screen.DrawImage(g.World, options)
+	screen.DrawImage(
+		g.World,
+		options,
+	)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -1034,7 +1106,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	if g.State == GameStateMenu {
 		g.Menu.Draw(g.World)
+
 		g.drawWorldToScreen(screen)
+
 		return
 	}
 
@@ -1105,8 +1179,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.drawWorldToScreen(screen)
 
+	if g.Dungeon != nil && g.Dungeon.Active {
+		g.Dungeon.DrawHUD(
+			screen,
+			g.Player,
+		)
+
+		return
+	}
+
 	if g.Story != nil && g.Story.Active {
 		g.Story.Draw(screen)
+
 		return
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"math"
 	"math/rand"
 	"time"
 
@@ -10,347 +11,938 @@ import (
 )
 
 const (
-	ParticleLeaf = iota
-	ParticleFirefly
-	ParticleDust
-	ParticleColdDust
-	ParticleEmber
+	AtmosphereParticleDust = iota
+	AtmosphereParticleGlow
+	AtmosphereParticleLeaf
+	AtmosphereParticleEmber
+	AtmosphereParticleCold
 )
 
-type AmbientParticle struct {
+type AtmosphereParticle struct {
 	X float64
 	Y float64
 
 	VX float64
 	VY float64
 
-	Width  float64
-	Height float64
+	Size float64
+
+	Alpha float64
+
+	Phase float64
 
 	Life    int
 	MaxLife int
 
-	Type int
+	Kind int
+
+	Depth float64
 }
 
 type Atmosphere struct {
-	Particles []AmbientParticle
-	Random    *rand.Rand
-	Level     int
+	Particles []AtmosphereParticle
+
+	Level int
+
+	Timer int
+
+	Random *rand.Rand
 }
 
 func NewAtmosphere() *Atmosphere {
 	return &Atmosphere{
-		Particles: []AmbientParticle{},
+		Particles: []AtmosphereParticle{},
+		Level:     1,
+		Timer:     0,
 		Random: rand.New(
-			rand.NewSource(time.Now().UnixNano()),
+			rand.NewSource(
+				time.Now().UnixNano(),
+			),
 		),
-		Level: 0,
 	}
 }
 
-func (a *Atmosphere) Reset(levelNumber int) {
-	a.Particles = []AmbientParticle{}
-	a.Level = levelNumber
+func (a *Atmosphere) Reset(level int) {
+	a.Level = level
+	a.Timer = 0
+	a.Particles = []AtmosphereParticle{}
 
-	switch levelNumber {
-	case 1:
-		for i := 0; i < 16; i++ {
-			a.spawnForestParticle(true)
-		}
+	count := a.ParticleCountForLevel(level)
 
-	case 2:
-		for i := 0; i < 20; i++ {
-			a.spawnDustParticle(true)
-		}
+	for i := 0; i < count; i++ {
+		particle := a.NewParticle(level, true)
 
-	case 3:
-		for i := 0; i < 18; i++ {
-			a.spawnColdDustParticle(true)
-		}
-
-	case 4:
-		for i := 0; i < 24; i++ {
-			a.spawnEmberParticle(true)
-		}
+		a.Particles = append(
+			a.Particles,
+			particle,
+		)
 	}
 }
 
-func (a *Atmosphere) Update(levelNumber int) {
-	if a.Level != levelNumber {
-		a.Reset(levelNumber)
-	}
-
-	switch levelNumber {
+func (a *Atmosphere) ParticleCountForLevel(level int) int {
+	switch level {
 	case 1:
-		if a.Random.Intn(12) == 0 {
-			a.spawnForestParticle(false)
-		}
+		return 85
 
 	case 2:
-		if a.Random.Intn(10) == 0 {
-			a.spawnDustParticle(false)
-		}
+		return 90
 
 	case 3:
-		if a.Random.Intn(11) == 0 {
-			a.spawnColdDustParticle(false)
-		}
+		return 105
 
 	case 4:
-		if a.Random.Intn(5) == 0 {
-			a.spawnEmberParticle(false)
-		}
+		return 130
 	}
 
-	active := make([]AmbientParticle, 0, len(a.Particles))
+	return 80
+}
+
+func (a *Atmosphere) Update(level int) {
+	if a.Random == nil {
+		a.Random = rand.New(
+			rand.NewSource(
+				time.Now().UnixNano(),
+			),
+		)
+	}
+
+	if a.Level != level || len(a.Particles) == 0 {
+		a.Reset(level)
+	}
+
+	a.Timer++
 
 	for i := range a.Particles {
-		particle := a.Particles[i]
+		a.UpdateParticle(
+			&a.Particles[i],
+			level,
+		)
+	}
+}
 
+func (a *Atmosphere) UpdateParticle(particle *AtmosphereParticle, level int) {
+	particle.Phase += 0.02 + particle.Depth*0.02
+
+	switch level {
+	case 1:
+		a.UpdateForestParticle(particle)
+
+	case 2:
+		a.UpdateRuinsParticle(particle)
+
+	case 3:
+		a.UpdateCastleParticle(particle)
+
+	case 4:
+		a.UpdateBossParticle(particle)
+
+	default:
+		a.UpdateRuinsParticle(particle)
+	}
+
+	particle.Life--
+
+	if a.ShouldRespawn(particle) {
+		newParticle := a.NewParticle(level, false)
+		*particle = newParticle
+	}
+}
+
+func (a *Atmosphere) UpdateForestParticle(particle *AtmosphereParticle) {
+	switch particle.Kind {
+	case AtmosphereParticleLeaf:
 		particle.X += particle.VX
 		particle.Y += particle.VY
 
-		particle.Life--
+		particle.X += math.Sin(particle.Phase) * 0.09
+		particle.Y += math.Cos(particle.Phase*0.7) * 0.025
 
-		switch particle.Type {
-		case ParticleLeaf:
-			particle.VX += (a.Random.Float64() - 0.5) * 0.015
+	case AtmosphereParticleGlow:
+		particle.X += particle.VX
+		particle.Y += particle.VY
 
-		case ParticleFirefly:
-			particle.VX += (a.Random.Float64() - 0.5) * 0.01
-			particle.VY += (a.Random.Float64() - 0.5) * 0.01
+		particle.X += math.Sin(particle.Phase) * 0.04
+		particle.Y += math.Sin(particle.Phase*1.4) * 0.06
 
-		case ParticleDust:
-			particle.VX += (a.Random.Float64() - 0.5) * 0.003
+	default:
+		particle.X += particle.VX
+		particle.Y += particle.VY
 
-		case ParticleColdDust:
-			particle.VX += (a.Random.Float64() - 0.5) * 0.004
-
-		case ParticleEmber:
-			particle.VX += (a.Random.Float64() - 0.5) * 0.01
-		}
-
-		if particle.Life <= 0 {
-			continue
-		}
-
-		if particle.X < -5 || particle.X > 325 {
-			continue
-		}
-
-		if particle.Y < -5 || particle.Y > 185 {
-			continue
-		}
-
-		active = append(active, particle)
+		particle.X += math.Sin(particle.Phase) * 0.02
 	}
-
-	a.Particles = active
 }
 
-func (a *Atmosphere) spawnForestParticle(initial bool) {
-	if a.Random.Intn(4) == 0 {
-		a.spawnFirefly(initial)
-		return
+func (a *Atmosphere) UpdateRuinsParticle(particle *AtmosphereParticle) {
+	switch particle.Kind {
+	case AtmosphereParticleGlow:
+		particle.X += particle.VX
+		particle.Y += particle.VY
+
+		particle.X += math.Sin(particle.Phase) * 0.04
+
+	default:
+		particle.X += particle.VX
+		particle.Y += particle.VY
+
+		particle.X += math.Sin(particle.Phase) * 0.025
 	}
-
-	x := -3.0
-
-	if initial {
-		x = a.Random.Float64() * 320
-	}
-
-	y := a.Random.Float64() * 135
-
-	life := 500 + a.Random.Intn(500)
-
-	a.Particles = append(
-		a.Particles,
-		AmbientParticle{
-			X:       x,
-			Y:       y,
-			VX:      0.15 + a.Random.Float64()*0.25,
-			VY:      0.08 + a.Random.Float64()*0.18,
-			Width:   2,
-			Height:  1,
-			Life:    life,
-			MaxLife: life,
-			Type:    ParticleLeaf,
-		},
-	)
 }
 
-func (a *Atmosphere) spawnFirefly(initial bool) {
-	x := -2.0
+func (a *Atmosphere) UpdateCastleParticle(particle *AtmosphereParticle) {
+	switch particle.Kind {
+	case AtmosphereParticleCold:
+		particle.X += particle.VX
+		particle.Y += particle.VY
 
-	if initial {
-		x = a.Random.Float64() * 320
+		particle.X += math.Sin(particle.Phase) * 0.055
+
+	case AtmosphereParticleGlow:
+		particle.X += particle.VX
+		particle.Y += particle.VY
+
+		particle.Y += math.Sin(particle.Phase) * 0.04
+
+	default:
+		particle.X += particle.VX
+		particle.Y += particle.VY
 	}
-
-	y := 25 + a.Random.Float64()*105
-
-	life := 350 + a.Random.Intn(400)
-
-	a.Particles = append(
-		a.Particles,
-		AmbientParticle{
-			X:       x,
-			Y:       y,
-			VX:      0.05 + a.Random.Float64()*0.12,
-			VY:      (a.Random.Float64() - 0.5) * 0.08,
-			Width:   1,
-			Height:  1,
-			Life:    life,
-			MaxLife: life,
-			Type:    ParticleFirefly,
-		},
-	)
 }
 
-func (a *Atmosphere) spawnDustParticle(initial bool) {
-	x := -2.0
+func (a *Atmosphere) UpdateBossParticle(particle *AtmosphereParticle) {
+	switch particle.Kind {
+	case AtmosphereParticleEmber:
+		particle.X += particle.VX
+		particle.Y += particle.VY
 
-	if initial {
-		x = a.Random.Float64() * 320
+		particle.X += math.Sin(particle.Phase) * 0.09
+
+		particle.VY -= 0.0007
+
+	case AtmosphereParticleGlow:
+		particle.X += particle.VX
+		particle.Y += particle.VY
+
+		particle.X += math.Sin(particle.Phase*1.4) * 0.05
+
+	default:
+		particle.X += particle.VX
+		particle.Y += particle.VY
 	}
-
-	y := 20 + a.Random.Float64()*125
-
-	life := 500 + a.Random.Intn(500)
-
-	a.Particles = append(
-		a.Particles,
-		AmbientParticle{
-			X:       x,
-			Y:       y,
-			VX:      0.03 + a.Random.Float64()*0.08,
-			VY:      0.01 + a.Random.Float64()*0.03,
-			Width:   1,
-			Height:  1,
-			Life:    life,
-			MaxLife: life,
-			Type:    ParticleDust,
-		},
-	)
 }
 
-func (a *Atmosphere) spawnColdDustParticle(initial bool) {
-	x := -2.0
-
-	if initial {
-		x = a.Random.Float64() * 320
+func (a *Atmosphere) ShouldRespawn(particle *AtmosphereParticle) bool {
+	if particle.Life <= 0 {
+		return true
 	}
 
-	y := 15 + a.Random.Float64()*130
+	if particle.X < -20 {
+		return true
+	}
 
-	life := 500 + a.Random.Intn(500)
+	if particle.X > 340 {
+		return true
+	}
 
-	a.Particles = append(
-		a.Particles,
-		AmbientParticle{
-			X:       x,
-			Y:       y,
-			VX:      0.02 + a.Random.Float64()*0.06,
-			VY:      0.015 + a.Random.Float64()*0.035,
-			Width:   1,
-			Height:  1,
-			Life:    life,
-			MaxLife: life,
-			Type:    ParticleColdDust,
-		},
-	)
+	if particle.Y < -20 {
+		return true
+	}
+
+	if particle.Y > 200 {
+		return true
+	}
+
+	return false
 }
 
-func (a *Atmosphere) spawnEmberParticle(initial bool) {
+func (a *Atmosphere) NewParticle(level int, anywhere bool) AtmosphereParticle {
+	switch level {
+	case 1:
+		return a.NewForestParticle(anywhere)
+
+	case 2:
+		return a.NewRuinsParticle(anywhere)
+
+	case 3:
+		return a.NewCastleParticle(anywhere)
+
+	case 4:
+		return a.NewBossParticle(anywhere)
+	}
+
+	return a.NewRuinsParticle(anywhere)
+}
+
+func (a *Atmosphere) NewForestParticle(anywhere bool) AtmosphereParticle {
+	randomKind := a.Random.Intn(100)
+
+	kind := AtmosphereParticleLeaf
+
+	if randomKind < 32 {
+		kind = AtmosphereParticleGlow
+	} else if randomKind < 52 {
+		kind = AtmosphereParticleDust
+	}
+
 	x := a.Random.Float64() * 320
-	y := 178.0
+	y := a.Random.Float64() * 175
 
-	if initial {
-		y = 50 + a.Random.Float64()*128
+	if !anywhere {
+		switch kind {
+		case AtmosphereParticleLeaf:
+			x = -8
+			y = a.Random.Float64() * 150
+
+		case AtmosphereParticleGlow:
+			x = a.Random.Float64() * 320
+			y = 185
+
+		default:
+			x = a.Random.Float64() * 320
+			y = 185
+		}
 	}
 
-	life := 180 + a.Random.Intn(300)
+	depth := 0.35 + a.Random.Float64()*0.95
 
-	a.Particles = append(
-		a.Particles,
-		AmbientParticle{
-			X:       x,
-			Y:       y,
-			VX:      (a.Random.Float64() - 0.5) * 0.12,
-			VY:      -(0.15 + a.Random.Float64()*0.3),
-			Width:   1,
-			Height:  2,
-			Life:    life,
-			MaxLife: life,
-			Type:    ParticleEmber,
-		},
-	)
+	if kind == AtmosphereParticleGlow {
+		return AtmosphereParticle{
+			X: x,
+			Y: y,
+
+			VX: -0.04 + a.Random.Float64()*0.08,
+			VY: -0.025 - a.Random.Float64()*0.055,
+
+			Size: 0.7 + a.Random.Float64()*1.0,
+
+			Alpha: 0.45 + a.Random.Float64()*0.45,
+
+			Phase: a.Random.Float64() * math.Pi * 2,
+
+			Life:    550 + a.Random.Intn(450),
+			MaxLife: 1000,
+
+			Kind: kind,
+
+			Depth: depth,
+		}
+	}
+
+	if kind == AtmosphereParticleDust {
+		return AtmosphereParticle{
+			X: x,
+			Y: y,
+
+			VX: -0.015 + a.Random.Float64()*0.03,
+			VY: -0.015 - a.Random.Float64()*0.035,
+
+			Size: 0.5 + a.Random.Float64()*0.8,
+
+			Alpha: 0.18 + a.Random.Float64()*0.30,
+
+			Phase: a.Random.Float64() * math.Pi * 2,
+
+			Life:    650 + a.Random.Intn(450),
+			MaxLife: 1100,
+
+			Kind: kind,
+
+			Depth: depth,
+		}
+	}
+
+	return AtmosphereParticle{
+		X: x,
+		Y: y,
+
+		VX: 0.07 + a.Random.Float64()*0.22,
+		VY: 0.03 + a.Random.Float64()*0.10,
+
+		Size: 0.8 + a.Random.Float64()*1.5,
+
+		Alpha: 0.30 + a.Random.Float64()*0.40,
+
+		Phase: a.Random.Float64() * math.Pi * 2,
+
+		Life:    650 + a.Random.Intn(450),
+		MaxLife: 1100,
+
+		Kind: kind,
+
+		Depth: depth,
+	}
+}
+
+func (a *Atmosphere) NewRuinsParticle(anywhere bool) AtmosphereParticle {
+	randomKind := a.Random.Intn(100)
+
+	kind := AtmosphereParticleDust
+
+	if randomKind < 16 {
+		kind = AtmosphereParticleGlow
+	}
+
+	x := a.Random.Float64() * 320
+	y := a.Random.Float64() * 180
+
+	if !anywhere {
+		x = a.Random.Float64() * 320
+		y = 190
+	}
+
+	depth := 0.3 + a.Random.Float64()*1.0
+
+	if kind == AtmosphereParticleGlow {
+		return AtmosphereParticle{
+			X: x,
+			Y: y,
+
+			VX: -0.025 + a.Random.Float64()*0.05,
+			VY: -0.045 - a.Random.Float64()*0.07,
+
+			Size: 0.6 + a.Random.Float64()*0.9,
+
+			Alpha: 0.30 + a.Random.Float64()*0.35,
+
+			Phase: a.Random.Float64() * math.Pi * 2,
+
+			Life:    450 + a.Random.Intn(400),
+			MaxLife: 850,
+
+			Kind: kind,
+
+			Depth: depth,
+		}
+	}
+
+	return AtmosphereParticle{
+		X: x,
+		Y: y,
+
+		VX: -0.03 + a.Random.Float64()*0.06,
+		VY: -0.02 - a.Random.Float64()*0.065,
+
+		Size: 0.5 + a.Random.Float64()*1.35,
+
+		Alpha: 0.20 + a.Random.Float64()*0.36,
+
+		Phase: a.Random.Float64() * math.Pi * 2,
+
+		Life:    650 + a.Random.Intn(500),
+		MaxLife: 1150,
+
+		Kind: kind,
+
+		Depth: depth,
+	}
+}
+
+func (a *Atmosphere) NewCastleParticle(anywhere bool) AtmosphereParticle {
+	randomKind := a.Random.Intn(100)
+
+	kind := AtmosphereParticleCold
+
+	if randomKind < 20 {
+		kind = AtmosphereParticleGlow
+	}
+
+	x := a.Random.Float64() * 320
+	y := a.Random.Float64() * 175
+
+	if !anywhere {
+		x = 328
+		y = a.Random.Float64() * 175
+	}
+
+	depth := 0.3 + a.Random.Float64()*1.0
+
+	if kind == AtmosphereParticleGlow {
+		return AtmosphereParticle{
+			X: x,
+			Y: y,
+
+			VX: -0.06 - a.Random.Float64()*0.09,
+			VY: -0.02 + a.Random.Float64()*0.04,
+
+			Size: 0.7 + a.Random.Float64()*0.8,
+
+			Alpha: 0.40 + a.Random.Float64()*0.42,
+
+			Phase: a.Random.Float64() * math.Pi * 2,
+
+			Life:    500 + a.Random.Intn(450),
+			MaxLife: 950,
+
+			Kind: kind,
+
+			Depth: depth,
+		}
+	}
+
+	speedMultiplier := 0.65 + depth*0.55
+
+	return AtmosphereParticle{
+		X: x,
+		Y: y,
+
+		VX: (-0.075 - a.Random.Float64()*0.20) * speedMultiplier,
+		VY: 0.01 + a.Random.Float64()*0.055,
+
+		Size: 0.5 + depth*a.Random.Float64()*1.35,
+
+		Alpha: 0.22 + depth*0.23 + a.Random.Float64()*0.20,
+
+		Phase: a.Random.Float64() * math.Pi * 2,
+
+		Life:    750 + a.Random.Intn(500),
+		MaxLife: 1250,
+
+		Kind: kind,
+
+		Depth: depth,
+	}
+}
+
+func (a *Atmosphere) NewBossParticle(anywhere bool) AtmosphereParticle {
+	randomKind := a.Random.Intn(100)
+
+	kind := AtmosphereParticleEmber
+
+	if randomKind < 24 {
+		kind = AtmosphereParticleGlow
+	}
+
+	x := a.Random.Float64() * 320
+	y := a.Random.Float64() * 180
+
+	if !anywhere {
+		x = a.Random.Float64() * 320
+		y = 190
+	}
+
+	depth := 0.4 + a.Random.Float64()*1.0
+
+	if kind == AtmosphereParticleGlow {
+		return AtmosphereParticle{
+			X: x,
+			Y: y,
+
+			VX: -0.035 + a.Random.Float64()*0.07,
+			VY: -0.10 - a.Random.Float64()*0.14,
+
+			Size: 0.9 + a.Random.Float64()*1.5,
+
+			Alpha: 0.40 + a.Random.Float64()*0.48,
+
+			Phase: a.Random.Float64() * math.Pi * 2,
+
+			Life:    350 + a.Random.Intn(400),
+			MaxLife: 750,
+
+			Kind: kind,
+
+			Depth: depth,
+		}
+	}
+
+	return AtmosphereParticle{
+		X: x,
+		Y: y,
+
+		VX: -0.075 + a.Random.Float64()*0.15,
+		VY: -0.14 - a.Random.Float64()*0.25,
+
+		Size: 0.65 + a.Random.Float64()*1.7,
+
+		Alpha: 0.45 + a.Random.Float64()*0.45,
+
+		Phase: a.Random.Float64() * math.Pi * 2,
+
+		Life:    400 + a.Random.Intn(450),
+		MaxLife: 850,
+
+		Kind: kind,
+
+		Depth: depth,
+	}
 }
 
 func (a *Atmosphere) Draw(screen *ebiten.Image) {
-	for _, particle := range a.Particles {
-		alphaRatio := float64(particle.Life) / float64(particle.MaxLife)
+	if screen == nil {
+		return
+	}
 
-		if alphaRatio > 1 {
-			alphaRatio = 1
+	for i := range a.Particles {
+		particle := &a.Particles[i]
+
+		switch a.Level {
+		case 1:
+			a.DrawForestParticle(screen, particle)
+
+		case 2:
+			a.DrawRuinsParticle(screen, particle)
+
+		case 3:
+			a.DrawCastleParticle(screen, particle)
+
+		case 4:
+			a.DrawBossParticle(screen, particle)
+
+		default:
+			a.DrawRuinsParticle(screen, particle)
 		}
+	}
+}
 
-		if alphaRatio < 0 {
-			alphaRatio = 0
-		}
+func atmosphereAlpha(value float64) uint8 {
+	if value < 0 {
+		value = 0
+	}
 
-		var particleColor color.RGBA
+	if value > 1 {
+		value = 1
+	}
 
-		switch particle.Type {
-		case ParticleLeaf:
-			particleColor = color.RGBA{
-				R: 90,
-				G: 130,
-				B: 45,
-				A: uint8(170 * alphaRatio),
-			}
+	return uint8(value * 255)
+}
 
-		case ParticleFirefly:
-			particleColor = color.RGBA{
-				R: 255,
-				G: 225,
-				B: 110,
-				A: uint8(220 * alphaRatio),
-			}
+func (a *Atmosphere) ParticleFade(particle *AtmosphereParticle) float64 {
+	if particle.MaxLife <= 0 {
+		return 1
+	}
 
-		case ParticleDust:
-			particleColor = color.RGBA{
-				R: 190,
-				G: 175,
+	ratio := float64(particle.Life) / float64(particle.MaxLife)
+
+	if ratio < 0 {
+		ratio = 0
+	}
+
+	if ratio > 1 {
+		ratio = 1
+	}
+
+	fade := 1.0
+
+	if ratio < 0.15 {
+		fade = ratio / 0.15
+	}
+
+	return fade
+}
+
+func (a *Atmosphere) DrawForestParticle(screen *ebiten.Image, particle *AtmosphereParticle) {
+	fade := a.ParticleFade(particle)
+
+	if particle.Kind == AtmosphereParticleGlow {
+		pulse := (math.Sin(particle.Phase*2) + 1) / 2
+
+		alpha := atmosphereAlpha(
+			particle.Alpha * fade * (0.50 + pulse*0.50),
+		)
+
+		size := particle.Size
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X-size,
+			particle.Y-size,
+			size*2,
+			size*2,
+			color.RGBA{
+				R: 120,
+				G: 230,
 				B: 150,
-				A: uint8(100 * alphaRatio),
-			}
-
-		case ParticleColdDust:
-			particleColor = color.RGBA{
-				R: 150,
-				G: 175,
-				B: 190,
-				A: uint8(95 * alphaRatio),
-			}
-
-		case ParticleEmber:
-			particleColor = color.RGBA{
-				R: 255,
-				G: 90,
-				B: 35,
-				A: uint8(220 * alphaRatio),
-			}
-		}
+				A: alpha / 4,
+			},
+		)
 
 		ebitenutil.DrawRect(
 			screen,
 			particle.X,
 			particle.Y,
-			particle.Width,
-			particle.Height,
-			particleColor,
+			1,
+			1,
+			color.RGBA{
+				R: 210,
+				G: 255,
+				B: 180,
+				A: alpha,
+			},
+		)
+
+		return
+	}
+
+	if particle.Kind == AtmosphereParticleDust {
+		alpha := atmosphereAlpha(
+			particle.Alpha * fade,
+		)
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y,
+			particle.Size,
+			particle.Size,
+			color.RGBA{
+				R: 180,
+				G: 205,
+				B: 150,
+				A: alpha,
+			},
+		)
+
+		return
+	}
+
+	alpha := atmosphereAlpha(
+		particle.Alpha * fade,
+	)
+
+	size := particle.Size
+
+	ebitenutil.DrawRect(
+		screen,
+		particle.X,
+		particle.Y,
+		size,
+		size*0.55,
+		color.RGBA{
+			R: 105,
+			G: 150,
+			B: 65,
+			A: alpha,
+		},
+	)
+}
+
+func (a *Atmosphere) DrawRuinsParticle(screen *ebiten.Image, particle *AtmosphereParticle) {
+	fade := a.ParticleFade(particle)
+
+	if particle.Kind == AtmosphereParticleGlow {
+		pulse := (math.Sin(particle.Phase*2.3) + 1) / 2
+
+		alpha := atmosphereAlpha(
+			particle.Alpha * fade * (0.55 + pulse*0.45),
+		)
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X-1,
+			particle.Y-1,
+			3,
+			3,
+			color.RGBA{
+				R: 210,
+				G: 180,
+				B: 125,
+				A: alpha / 5,
+			},
+		)
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y,
+			1,
+			1,
+			color.RGBA{
+				R: 245,
+				G: 220,
+				B: 170,
+				A: alpha,
+			},
+		)
+
+		return
+	}
+
+	alpha := atmosphereAlpha(
+		particle.Alpha * fade,
+	)
+
+	size := particle.Size
+
+	ebitenutil.DrawRect(
+		screen,
+		particle.X,
+		particle.Y,
+		size,
+		size,
+		color.RGBA{
+			R: 180,
+			G: 170,
+			B: 145,
+			A: alpha,
+		},
+	)
+
+	if particle.Depth > 0.95 {
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y+size,
+			1,
+			1,
+			color.RGBA{
+				R: 205,
+				G: 195,
+				B: 170,
+				A: alpha / 2,
+			},
+		)
+	}
+}
+
+func (a *Atmosphere) DrawCastleParticle(screen *ebiten.Image, particle *AtmosphereParticle) {
+	fade := a.ParticleFade(particle)
+
+	if particle.Kind == AtmosphereParticleGlow {
+		pulse := (math.Sin(particle.Phase*2.4) + 1) / 2
+
+		alpha := atmosphereAlpha(
+			particle.Alpha * fade * (0.55 + pulse*0.45),
+		)
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X-1,
+			particle.Y-1,
+			3,
+			3,
+			color.RGBA{
+				R: 110,
+				G: 175,
+				B: 255,
+				A: alpha / 5,
+			},
+		)
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y,
+			1,
+			1,
+			color.RGBA{
+				R: 205,
+				G: 230,
+				B: 255,
+				A: alpha,
+			},
+		)
+
+		return
+	}
+
+	alpha := atmosphereAlpha(
+		particle.Alpha * fade,
+	)
+
+	size := particle.Size
+
+	if particle.Depth > 0.9 {
+		ebitenutil.DrawRect(
+			screen,
+			particle.X-1,
+			particle.Y,
+			size+2,
+			1,
+			color.RGBA{
+				R: 170,
+				G: 205,
+				B: 240,
+				A: alpha / 4,
+			},
+		)
+	}
+
+	ebitenutil.DrawRect(
+		screen,
+		particle.X,
+		particle.Y,
+		size,
+		size,
+		color.RGBA{
+			R: 205,
+			G: 225,
+			B: 245,
+			A: alpha,
+		},
+	)
+}
+
+func (a *Atmosphere) DrawBossParticle(screen *ebiten.Image, particle *AtmosphereParticle) {
+	fade := a.ParticleFade(particle)
+
+	pulse := (math.Sin(particle.Phase*2.2) + 1) / 2
+
+	alpha := atmosphereAlpha(
+		particle.Alpha * fade * (0.65 + pulse*0.35),
+	)
+
+	if particle.Kind == AtmosphereParticleGlow {
+		size := particle.Size
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X-size,
+			particle.Y-size,
+			size*2,
+			size*2,
+			color.RGBA{
+				R: 255,
+				G: 80,
+				B: 35,
+				A: alpha / 4,
+			},
+		)
+
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y,
+			1,
+			1,
+			color.RGBA{
+				R: 255,
+				G: 220,
+				B: 100,
+				A: alpha,
+			},
+		)
+
+		return
+	}
+
+	size := particle.Size
+
+	ebitenutil.DrawRect(
+		screen,
+		particle.X,
+		particle.Y,
+		size,
+		size,
+		color.RGBA{
+			R: 255,
+			G: 105,
+			B: 40,
+			A: alpha,
+		},
+	)
+
+	if particle.Depth > 0.85 {
+		ebitenutil.DrawRect(
+			screen,
+			particle.X,
+			particle.Y+size,
+			1,
+			2,
+			color.RGBA{
+				R: 255,
+				G: 55,
+				B: 20,
+				A: alpha / 2,
+			},
 		)
 	}
 }
