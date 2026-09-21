@@ -33,7 +33,6 @@ func retour() {
 	}
 }
 
-
 func menu(player *structure.Character) {
 
 	for {
@@ -70,7 +69,6 @@ func menu(player *structure.Character) {
 
 			accessForge(player)
 
-			
 		case 4:
 			fmt.Println("Fermeture du jeu...")
 			return

@@ -109,6 +109,7 @@ func combatBoss(
 
 				fmt.Println()
 				fmt.Println("Le combat est terminé.")
+
 				return
 			}
 
@@ -183,11 +184,7 @@ func tourBoss(
 		perso.PointsDeVieActuels = 0
 	}
 
-	fmt.Println(
-		"Le boss vous inflige",
-		boss.Degats,
-		"dégâts.",
-	)
+	fmt.Println("Le boss vous inflige", boss.Degats, "dégâts.")
 
 	fmt.Println(
 		"Vos PV :",

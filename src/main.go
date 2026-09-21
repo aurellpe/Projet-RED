@@ -64,7 +64,6 @@ func characterCreation(scanner *bufio.Scanner) structure.Character {
 			break
 		}
 
-		fmt.Println("Nom invalide.")
 		fmt.Println("Le nom doit contenir uniquement des lettres.")
 	}
 
@@ -262,7 +261,6 @@ func acheterItemPayant(c *structure.Character, nom string, prix int) {
 	for i := range c.Inventaire {
 		if c.Inventaire[i].Nom == nom {
 			c.Inventaire[i].Quantity++
-
 			fmt.Println("Vous avez acheté :", nom)
 			return
 		}
@@ -302,4 +300,47 @@ func levelUp(c *structure.Character) {
 	fmt.Println("Vous êtes maintenant niveau", c.Niveau)
 	fmt.Println("Bonus : +", bonusPV, "PV maximum")
 	fmt.Println("PV :", c.PointsDeVieActuels, "/", c.PointsDeVieMaximum)
+}
+
+func main() {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	perso := characterCreation(scanner)
+
+	boss := structure.NewBoss()
+
+	for {
+		fmt.Println()
+		fmt.Println("========== MENU ==========")
+		fmt.Println("1. Informations du personnage")
+		fmt.Println("2. Inventaire")
+		fmt.Println("3. Marchand")
+		fmt.Println("4. Combattre le boss")
+		fmt.Println("0. Quitter")
+		fmt.Print("Choix : ")
+
+		scanner.Scan()
+		choix := scanner.Text()
+
+		switch choix {
+		case "1":
+			displayInfo(perso)
+
+		case "2":
+			accessInventory(perso)
+
+		case "3":
+			shopMenu(&perso, scanner)
+
+		case "4":
+			combatBoss(&perso, &boss, scanner)
+
+		case "0":
+			fmt.Println("Au revoir", perso.Nom, "!")
+			return
+
+		default:
+			fmt.Println("Choix invalide.")
+		}
+	}
 }

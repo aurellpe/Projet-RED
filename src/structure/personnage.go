@@ -22,7 +22,3 @@ type Character struct {
 func (p *Character) AddInventory(item Item) {
 	p.Inventaire = append(p.Inventaire, item)
 }
-
-func(p *Character)AddInventory(item Item) {
-	p.Inventaire = append(p.Inventaire,item)
-}
