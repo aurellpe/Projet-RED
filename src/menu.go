@@ -32,7 +32,7 @@ func menu(player *structure.Character) {
 			}
 
 		case 2:
-			shopMenu(p)
+			shopMenu(*player)
 
 			fmt.Println("\n0 - Retour")
 

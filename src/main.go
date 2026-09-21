@@ -89,7 +89,7 @@ func takePot( p structure.Character){
 
 
 
-func shopMenu(p *Personnage) {
+func shopMenu(p *structure.Character) {
     for {
         fmt.Println("\n=== 🛒 Boutique ===")
         fmt.Println("1 - Acheter potion de vie (+50 PV) - 5 or")
@@ -115,7 +115,7 @@ func shopMenu(p *Personnage) {
 
 
 
-func acheterPotionVie(p *Personnage) {
+func acheterPotionVie(p *structure.Character) {
     if p.Or < 5 {
         fmt.Println("❌ Vous n'avez pas assez d'or.")
         return
@@ -133,7 +133,7 @@ func acheterPotionVie(p *Personnage) {
 
 
 
-func acheterPotionPoison(p *Personnage) {
+func acheterPotionPoison(p *structure.Character) {
     if p.Or < 8 {
         fmt.Println("❌ Vous n'avez pas assez d'or.")
         return

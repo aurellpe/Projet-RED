@@ -15,3 +15,18 @@ type Character struct {
 	PointsDeVieActuels  int
 	Inventaire          []Item
 }
+
+func initCharacter() Character {
+    return Character{
+        Nom:                string
+        Prenom				string
+		PointsDeVieActuels: int
+        PointsDeVieMaximum: int
+        Attaque:            int
+        Or:                 int
+        Exp:               	int
+        ExpMax:             int
+        Niveau:             int
+        Fragments:          int
+    }
+}

@@ -4,74 +4,32 @@ import (
     "fmt"
     "math/rand"
     "time"
+    "main/structure"
 )
 
-type Personnage struct {
-    Nom                 string
-    PointsDeVieActuels  int
-    PointsDeVieMaximum  int
-    Attaque             int
-    Or                  int
-    Exp                 int
-    ExpMax              int
-    Niveau              int
-    Fragments           int
-}
 
-type Monstre struct {
-    Nom                 string
-    PointsDeVieActuels  int
-    PointsDeVieMaximum  int
-    Attaque             int
-    ExpGain             int
-}
-
-func InitPersonnage() Personnage {
-    return Personnage{
-        Nom:                "Dartagnan",
-        PointsDeVieActuels: 90,
-        PointsDeVieMaximum: 10000,
-        Attaque:            35,
-        Or:                 0,
-        Exp:                0,
-        ExpMax:             1000000,
-        Niveau:             1,
-        Fragments:          0,
-    }
-}
-
-func InitMonstre() Monstre {
-    return Monstre{
-        Nom:                "Python",
-        PointsDeVieActuels: 100,
-        PointsDeVieMaximum: 10000,
-        Attaque:            25,
-        ExpGain:            50,
-    }
-}
-
-func GenererRecompenses() (int, int) {
+func GenerateRewards() (int, int) {
     rand.Seed(time.Now().UnixNano())
 
-    or := rand.Intn(7-3+1) + 3
+    gold := rand.Intn(7-3+1) + 3
     fragments := rand.Intn(10) + 1
 
-    for fragments == or {
+    for fragments == gold {
         fragments = rand.Intn(10) + 1
     }
 
-    return or, fragments
+    return gold, fragments
 }
 
-func TourPersonnage(p *Personnage, m *Monstre) {
+func PlayerTurn(p *structure.Character, m *Monster) {
     fmt.Println("\n=== Tour du joueur ===")
     fmt.Println("1 - Attaquer")
     fmt.Println("2 - Passer le tour")
 
-    var choix int
-    fmt.Scanln(&choix)
+    var choice int
+    fmt.Scanln(&choice)
 
-    if choix == 1 {
+    if choice == 1 {
         fmt.Printf("%s attaque et inflige %d dégâts à %s !\n", p.Nom, p.Attaque, m.Nom)
         m.PointsDeVieActuels -= p.Attaque
         if m.PointsDeVieActuels < 0 {
@@ -83,7 +41,7 @@ func TourPersonnage(p *Personnage, m *Monstre) {
     }
 }
 
-func TourMonstre(p *Personnage, m *Monstre) {
+func MonsterTurn(p *structure.Character, m *Monster) {
     if m.PointsDeVieActuels <= 0 {
         return
     }
@@ -96,27 +54,27 @@ func TourMonstre(p *Personnage, m *Monstre) {
     fmt.Printf("PV du joueur : %d / %d\n", p.PointsDeVieActuels, p.PointsDeVieMaximum)
 }
 
-func DonnerRecompenses(p *Personnage, m Monstre) {
-    or, fragments := GenererRecompenses()
+func GiveRewards(p *structure.Character, m Monster) {
+    gold, fragments := GenerateRewards()
 
     fmt.Println("\n🎉 Victoire !")
     fmt.Printf("Vous gagnez %d XP, %d pièces d'or et %d fragments.\n",
-        m.ExpGain, or, fragments)
+        m.ExpGain, gold, fragments)
 
     p.Exp += m.ExpGain
-    p.Or += or
+    p.Or += gold
     p.Fragments += fragments
 
-    VerifierNiveau(p)
+    CheckLevel(p)
 }
 
-func BonusFinDeRound(p *Personnage) {
+func EndOfRoundBonus(p *structure.Character) {
     fmt.Println("\n✨ Bonus de fin de round : +50 XP")
     p.Exp += 50
-    VerifierNiveau(p)
+    CheckLevel(p)
 }
 
-func VerifierNiveau(p *Personnage) {
+func CheckLevel(p *structure.Character) {
     for p.Exp >= p.ExpMax {
         p.Exp -= p.ExpMax
         p.Niveau++
@@ -128,20 +86,20 @@ func VerifierNiveau(p *Personnage) {
     }
 }
 
-func CombatEntrainement(p *Personnage) {
+func TrainingFight(p *structure.Character) {
     round := 1
 
     for p.PointsDeVieActuels > 0 {
         fmt.Printf("\n=== ROUND %d ===\n", round)
-        monstre := InitMonstre()
+        monster := structure.InitMonstre()
 
-        for p.PointsDeVieActuels > 0 && monstre.PointsDeVieActuels > 0 {
-            TourPersonnage(p, &monstre)
-            if monstre.PointsDeVieActuels <= 0 {
-                DonnerRecompenses(p, monstre)
+        for p.PointsDeVieActuels > 0 && monster.PointsDeVieActuels > 0 {
+            PlayerTurn(p, &monster)
+            if monster.PointsDeVieActuels <= 0 {
+                GiveRewards(p, monster)
                 break
             }
-            TourMonstre(p, &monstre)
+            MonsterTurn(p, &monster)
         }
 
         if p.PointsDeVieActuels <= 0 {
@@ -149,13 +107,13 @@ func CombatEntrainement(p *Personnage) {
             p.PointsDeVieActuels = p.PointsDeVieMaximum / 2
         }
 
-        BonusFinDeRound(p)
+        EndOfRoundBonus(p)
         round++
 
         fmt.Println("\nContinuer ? (1 = Oui / 0 = Non)")
-        var cont int
-        fmt.Scanln(&cont)
-        if cont == 0 {
+        var keepGoing int
+        fmt.Scanln(&keepGoing)
+        if keepGoing == 0 {
             break
         }
     }
