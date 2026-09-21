@@ -21,17 +21,17 @@ func initCharacter(
 	argent int,
 ) structure.Character {
 	return structure.Character{
-		Nom:                nom,
-		Prenom:             prenom,
-		Age:                age,
-		Classe:             classe,
-		Niveau:             niveau,
-		PointsDeVieMaximum: pointsDeVieMaximum,
-		PointsDeVieActuels: pointsDeVieActuels,
-		Inventaire:         inventaire,
-		XPmax:              100,
-		XPactu:             0,
-		Argent:             argent,
+		Nom:                 nom,
+		Prenom:              prenom,
+		Age:                 age,
+		Classe:              classe,
+		Niveau:              niveau,
+		PointsDeVieMaximum:  pointsDeVieMaximum,
+		PointsDeVieActuels:  pointsDeVieActuels,
+		Inventaire:          inventaire,
+		XPmax:               100,
+		XPactu:              0,
+		Argent:              argent,
 	}
 }
 
@@ -116,53 +116,6 @@ func accessInventory(perso structure.Character) {
 
 	for i, objet := range perso.Inventaire {
 		fmt.Printf("%d - %s x%d\n", i+1, objet.Nom, objet.Quantity)
-	}
-}
-
-func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-
-	// Création du personnage par le joueur
-	perso := characterCreation(scanner)
-
-	// Création du boss
-	boss := structure.NewBoss()
-
-	run := true
-
-	for run {
-		fmt.Println()
-		fmt.Println("========== MENU ==========")
-		fmt.Println("1. Informations du personnage")
-		fmt.Println("2. Inventaire")
-		fmt.Println("3. Marchand")
-		fmt.Println("4. Combattre le boss")
-		fmt.Println("0. Quitter")
-		fmt.Print("Choix : ")
-
-		scanner.Scan()
-		choix := scanner.Text()
-
-		switch choix {
-		case "1":
-			displayInfo(perso)
-
-		case "2":
-			accessInventory(perso)
-
-		case "3":
-			shopMenu(&perso, scanner)
-
-		case "4":
-			combatBoss(&perso, &boss, scanner)
-
-		case "0":
-			fmt.Println("Au revoir", perso.Nom, "!")
-			run = false
-
-		default:
-			fmt.Println("Choix invalide.")
-		}
 	}
 }
 
