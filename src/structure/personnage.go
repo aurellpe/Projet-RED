@@ -14,4 +14,11 @@ type Character struct {
 	PointsDeVieMaximum  int
 	PointsDeVieActuels  int
 	Inventaire          []Item
+    XPmax               int
+	XPactu              int
+	Argent              int
+}
+
+func(p *Character)AddInventory(item Item) {
+	p.Inventaire = append(p.Inventaire,item)
 }
