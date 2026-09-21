@@ -21,7 +21,7 @@ func GenerateRewards() (int, int) {
     return gold, fragments
 }
 
-func PlayerTurn(p *structure.Character, m *Monster) {
+func PlayerTurn(p *structure.Character, m *structure.Monster) {
     fmt.Println("\n=== Tour du joueur ===")
     fmt.Println("1 - Attaquer")
     fmt.Println("2 - Passer le tour")
@@ -41,20 +41,20 @@ func PlayerTurn(p *structure.Character, m *Monster) {
     }
 }
 
-func MonsterTurn(p *structure.Character, m *Monster) {
+func MonsterTurn(p *structure.Character, m *structure.Monster) {
     if m.PointsDeVieActuels <= 0 {
         return
     }
 
-    fmt.Printf("%s attaque et inflige %d dégâts à %s !\n", m.Nom, m.Attaque, p.Nom)
-    p.PointsDeVieActuels -= m.Attaque
+    fmt.Printf("%s attaque et inflige %d dégâts à %s !\n", m.Nom, m.PointsDattaque, p.Nom)
+    p.PointsDeVieActuels -= m.PointsDattaque
     if p.PointsDeVieActuels < 0 {
         p.PointsDeVieActuels = 0
     }
     fmt.Printf("PV du joueur : %d / %d\n", p.PointsDeVieActuels, p.PointsDeVieMaximum)
 }
 
-func GiveRewards(p *structure.Character, m Monster) {
+func GiveRewards(p *structure.Character, m structure.Monster) {
     gold, fragments := GenerateRewards()
 
     fmt.Println("\n🎉 Victoire !")
@@ -91,7 +91,7 @@ func TrainingFight(p *structure.Character) {
 
     for p.PointsDeVieActuels > 0 {
         fmt.Printf("\n=== ROUND %d ===\n", round)
-        monster := structure.InitMonstre()
+        monster := structure.InitMonster()
 
         for p.PointsDeVieActuels > 0 && monster.PointsDeVieActuels > 0 {
             PlayerTurn(p, &monster)
