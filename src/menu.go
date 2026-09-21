@@ -1,51 +1,53 @@
 package main
 
 import (
-	"fmt";
+	"fmt"
 	"main/structure"
+	"strconv"
 )
+
+// lireEntier lit une saisie et la convertit en nombre (-1 si ce n'est pas un nombre)
+func lireEntier() int {
+	var saisie string
+	fmt.Print("Votre choix : ")
+	fmt.Scan(&saisie)
+	n, err := strconv.Atoi(saisie)
+	if err != nil {
+		return -1
+	}
+	return n
+}
+
+// retour affiche "0 - Retour" et attend que le joueur tape 0
+func retour() {
+	for {
+		fmt.Println("\n0 - Retour")
+		if lireEntier() == 0 {
+			return
+		}
+	}
+}
 
 func menu(player *structure.Character) {
 	for {
 		fmt.Println("\n===== MENU =====")
 		fmt.Println("1 - Afficher les informations du personnage")
 		fmt.Println("2 - Accéder à l'inventaire")
-		fmt.Println("3 - Quitter")
-		fmt.Print("Votre choix : ")
+		fmt.Println("3 - Accéder à la forge")
+		fmt.Println("4 - Quitter")
 
-		var choice int
-		fmt.Scan(&choice)
-
-		switch choice {
-
+		switch lireEntier() {
 		case 1:
 			displayInfo(*player)
-
-			fmt.Println("\n0 - Retour")
-
-			var back int
-			fmt.Scan(&back)
-
-			if back == 0 {
-				continue
-			}
-
+			retour()
 		case 2:
 			accessInventory(*player)
-
-			fmt.Println("\n0 - Retour")
-
-			var back int
-			fmt.Scan(&back)
-
-			if back == 0 {
-				continue
-			}
-
+			retour()
 		case 3:
+			accessForge(player)
+		case 4:
 			fmt.Println("Fermeture du jeu...")
 			return
-
 		default:
 			fmt.Println("Choix invalide.")
 		}
