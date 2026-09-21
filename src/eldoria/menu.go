@@ -36,6 +36,9 @@ type MainMenu struct {
 	Items    []string
 	Image    *ebiten.Image
 	Timer    int
+
+	ForgeOpen bool
+	Forge     *ForgeMenu
 }
 
 func NewMainMenu() *MainMenu {
@@ -56,10 +59,13 @@ func NewMainMenu() *MainMenu {
 			"CONTINUER",
 			"NOUVELLE PARTIE",
 			"DONJON",
+			"FORGE",
 			"OPTIONS",
 			"QUITTER",
 		},
-		Image: ebiten.NewImageFromImage(img),
+		Image:     ebiten.NewImageFromImage(img),
+		ForgeOpen: false,
+		Forge:     NewForgeMenu(),
 	}
 }
 
@@ -86,6 +92,18 @@ func (m *MainMenu) moveSelection(direction int) {
 func (m *MainMenu) Update() int {
 	m.Timer++
 
+	if m.ForgeOpen {
+		if m.Forge == nil {
+			m.Forge = NewForgeMenu()
+		}
+
+		if m.Forge.Update() {
+			m.ForgeOpen = false
+		}
+
+		return MenuActionNone
+	}
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) {
 		m.moveSelection(-1)
 	}
@@ -108,9 +126,17 @@ func (m *MainMenu) Update() int {
 			return MenuActionDungeon
 
 		case 3:
-			return MenuActionOptions
+			if m.Forge == nil {
+				m.Forge = NewForgeMenu()
+			}
+
+			m.Forge.Reload()
+			m.ForgeOpen = true
 
 		case 4:
+			return MenuActionOptions
+
+		case 5:
 			return MenuActionQuit
 		}
 	}
@@ -246,6 +272,14 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 		m.Image,
 	)
 
+	if m.ForgeOpen {
+		if m.Forge != nil {
+			m.Forge.Draw(screen)
+		}
+
+		return
+	}
+
 	panelColor := color.RGBA{
 		R: 4,
 		G: 8,
@@ -263,43 +297,44 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 	ebitenutil.DrawRect(
 		screen,
 		77,
-		5,
+		4,
 		166,
-		169,
+		172,
 		borderColor,
 	)
 
 	ebitenutil.DrawRect(
 		screen,
 		78,
-		6,
+		5,
 		164,
-		167,
+		170,
 		panelColor,
 	)
 
 	drawCenteredMenuText(
 		screen,
 		"E L D O R I A",
-		14,
+		10,
 	)
 
 	drawCenteredMenuText(
 		screen,
 		"LE ROYAUME OUBLIE",
-		27,
+		22,
 	)
 
 	buttonX := 91.0
 	buttonWidth := 138.0
-	buttonHeight := 17.0
+	buttonHeight := 16.0
 
 	positions := []float64{
-		41,
-		62,
-		83,
-		104,
-		125,
+		36,
+		56,
+		76,
+		96,
+		116,
+		136,
 	}
 
 	for i, item := range m.Items {
@@ -358,23 +393,23 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 		)
 	}
 
+	drawCenteredMenuText(
+		screen,
+		"FLECHES + ENTREE",
+		159,
+	)
+
 	if !HasSave() {
 		drawCenteredMenuText(
 			screen,
 			"Aucune sauvegarde",
-			148,
+			169,
 		)
 	} else {
 		drawCenteredMenuText(
 			screen,
 			"Sauvegarde disponible",
-			148,
+			169,
 		)
 	}
-
-	drawCenteredMenuText(
-		screen,
-		"FLECHES + ENTREE",
-		160,
-	)
 }

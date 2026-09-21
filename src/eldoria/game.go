@@ -51,6 +51,8 @@ type Game struct {
 	Puzzle              *DoorPuzzle
 	SkillTree           *SkillTree
 	Dungeon             *TrainingDungeon
+	Forge               *ForgeMenu
+	ForgeOpen           bool
 	ShakeTimer          int
 	ShakeStrength       float64
 	HitStopTimer        int
@@ -67,7 +69,6 @@ type Game struct {
 
 func loadBackground(data []byte) *ebiten.Image {
 	img, _, err := image.Decode(bytes.NewReader(data))
-
 	if err != nil {
 		panic(err)
 	}
@@ -115,6 +116,8 @@ func NewGame() *Game {
 		Puzzle:             nil,
 		SkillTree:          LoadSkillTreeProgress(),
 		Dungeon:            NewTrainingDungeon(),
+		Forge:              NewForgeMenu(),
+		ForgeOpen:          false,
 		AutosaveTimer:      0,
 		VictorySoundPlayed: false,
 	}
@@ -131,6 +134,7 @@ func (g *Game) UpdateMainMenu() error {
 
 	g.Paused = false
 	g.OptionsFromPause = false
+	g.ForgeOpen = false
 
 	if g.SkillTree != nil {
 		g.SkillTree.Open = false
@@ -179,6 +183,12 @@ func (g *Game) ContinueGame() {
 		g.Dungeon.Reset()
 	}
 
+	g.ForgeOpen = false
+
+	if g.Forge != nil {
+		g.Forge.Reload()
+	}
+
 	g.CurrentLevel = save.CurrentLevel
 	g.Player = NewPlayer()
 
@@ -209,7 +219,13 @@ func (g *Game) ContinueGame() {
 
 	g.SetupCurrentLevel()
 
-	g.Player.HP = save.PlayerHP
+	loadedHP := save.PlayerHP
+
+	if save.PlayerMaxHP > 0 && g.Player.MaxHP > save.PlayerMaxHP {
+		loadedHP += g.Player.MaxHP - save.PlayerMaxHP
+	}
+
+	g.Player.HP = loadedHP
 
 	if g.Player.HP <= 0 {
 		g.Player.HP = 1
@@ -243,6 +259,8 @@ func (g *Game) UpdatePauseMenu() error {
 			g.SkillTree.Open = false
 			_ = SaveSkillTreeProgress(g.SkillTree)
 		}
+
+		g.ForgeOpen = false
 
 		if g.Combat != nil {
 			g.Combat.Reset()
@@ -311,7 +329,6 @@ func (g *Game) UpdateMusic() {
 		}
 
 		g.Music.PlayBoss()
-
 		return
 	}
 
@@ -325,7 +342,7 @@ func (g *Game) ApplyCurrentLevelProgression() {
 
 	levelIndex := g.CurrentLevel
 
-	targetMaxHP := 100 + levelIndex*10
+	targetMaxHP := 100 + levelIndex*10 + ForgeHPBonus()
 	baseAttack := 50 + levelIndex*5
 
 	targetSpeed := 1.5 + float64(levelIndex)*0.08
@@ -359,6 +376,41 @@ func (g *Game) ApplyCurrentLevelProgression() {
 	g.Player.DodgeCooldown = targetDodgeCooldown
 }
 
+func (g *Game) OpenForge() {
+	if g.Forge == nil {
+		g.Forge = NewForgeMenu()
+	}
+
+	g.Forge.Reload()
+	g.ForgeOpen = true
+}
+
+func (g *Game) UpdateForge() {
+	if g.Forge == nil {
+		g.ForgeOpen = false
+		return
+	}
+
+	oldBonus := ForgeHPBonus()
+
+	closed := g.Forge.Update()
+
+	newBonus := ForgeHPBonus()
+
+	if newBonus != oldBonus {
+		g.ApplyCurrentLevelProgression()
+
+		_ = SaveGame(g)
+		_ = SaveSkillTreeProgress(g.SkillTree)
+
+		g.AutosaveTimer = 0
+	}
+
+	if closed {
+		g.ForgeOpen = false
+	}
+}
+
 func (g *Game) ShowUpgradeMessage() {
 	if g.CurrentLevel <= 0 {
 		return
@@ -374,6 +426,10 @@ func (g *Game) UpdateAutoSave() {
 	}
 
 	if g.Dungeon != nil && g.Dungeon.Active {
+		return
+	}
+
+	if g.ForgeOpen {
 		return
 	}
 
@@ -445,6 +501,8 @@ func (g *Game) SetupCurrentLevel() {
 	if g.SkillTree != nil {
 		g.SkillTree.Open = false
 	}
+
+	g.ForgeOpen = false
 
 	g.Boss = nil
 	g.Enemies = []*Enemy{}
@@ -556,11 +614,14 @@ func (g *Game) RestartGame() {
 
 	_ = DeleteSave()
 	_ = DeleteSkillTreeProgress()
+	_ = DeleteForgeProgress()
 
 	g.CurrentLevel = 0
 
 	g.Player = NewPlayer()
 	g.SkillTree = NewSkillTree()
+	g.Forge = NewForgeMenu()
+	g.ForgeOpen = false
 
 	g.Paused = false
 	g.OptionsFromPause = false
@@ -590,6 +651,8 @@ func (g *Game) RestartCurrentLevel() {
 	if g.Dungeon != nil {
 		g.Dungeon.Reset()
 	}
+
+	g.ForgeOpen = false
 
 	g.Player = NewPlayer()
 
@@ -804,6 +867,8 @@ func (g *Game) Update() error {
 	if g.Boss != nil && !g.Boss.Alive {
 		g.UpdateAtmosphere()
 
+		RewardForgeBossOnce()
+
 		if !g.VictorySoundPlayed {
 			g.Sounds.PlayVictory()
 			g.VictorySoundPlayed = true
@@ -829,10 +894,23 @@ func (g *Game) Update() error {
 		return nil
 	}
 
+	if g.ForgeOpen {
+		g.UpdateAtmosphere()
+		g.UpdateForge()
+
+		return nil
+	}
+
 	if g.SkillTree != nil && g.SkillTree.Open {
 		g.UpdateAtmosphere()
 
 		g.SkillTree.Update(g)
+
+		return nil
+	}
+
+	if !g.Transitioning && (g.Combat == nil || !g.Combat.Active) && inpututil.IsKeyJustPressed(ebiten.KeyF) {
+		g.OpenForge()
 
 		return nil
 	}
@@ -956,6 +1034,10 @@ func (g *Game) UpdateNormalEnemies() {
 			if !enemy.Alive && !enemy.DeathRewarded {
 				enemy.DeathRewarded = true
 
+				AddForgeFragments(
+					ForgeFragmentsForEnemy(enemy.Type),
+				)
+
 				g.Pickups = append(
 					g.Pickups,
 					NewHealthPotion(
@@ -970,6 +1052,10 @@ func (g *Game) UpdateNormalEnemies() {
 		if !enemy.Alive {
 			if !enemy.DeathRewarded {
 				enemy.DeathRewarded = true
+
+				AddForgeFragments(
+					ForgeFragmentsForEnemy(enemy.Type),
+				)
 
 				g.Pickups = append(
 					g.Pickups,
@@ -1173,11 +1259,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		damageText.Draw(g.World)
 	}
 
+	if g.ForgeOpen && g.Forge != nil {
+		g.Forge.Draw(g.World)
+	}
+
 	if g.Paused {
 		g.PauseMenu.Draw(g.World)
 	}
 
 	g.drawWorldToScreen(screen)
+
+	if g.ForgeOpen {
+		return
+	}
 
 	if g.Dungeon != nil && g.Dungeon.Active {
 		g.Dungeon.DrawHUD(
