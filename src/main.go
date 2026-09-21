@@ -62,23 +62,50 @@ func main() {
 		100,
 	)
 
-	var run bool = true 
-	for run{
-		scanner.Scan()
-		choix := scanner.Text()
-		if choix == "1" {
-			displayInfo(perso)
-			fmt.Println()
-		}
-		if choix == "2" {
-			accessInventory(perso)
-			fmt.Println()
-		}
-		if choix == "3" {
-			shopMenu(&perso, scanner)
-			fmt.Println()
-}
+var run bool = true
+
+for run {
+
+	fmt.Println()
+	fmt.Println("==============================")
+	fmt.Println("           MENU")
+	fmt.Println("==============================")
+	fmt.Println("1 - Afficher les informations du personnage")
+	fmt.Println("2 - Accéder à l'inventaire")
+	fmt.Println("3 - Accéder au shop")
+	fmt.Println("4 - Accéder à la forge")
+	fmt.Println("5 - Quitter")
+	fmt.Println()
+
+	fmt.Print("Votre choix : ")
+	scanner.Scan()
+	choix := scanner.Text()
+
+	if choix == "1" {
+		displayInfo(perso)
+		fmt.Println()
 	}
+
+	if choix == "2" {
+		accessInventory(perso)
+		fmt.Println()
+	}
+
+	if choix == "3" {
+		shop(&perso, bufio.NewReader(os.Stdin))
+		fmt.Println()
+	}
+
+	if choix == "4" {
+		accessForge(&perso)
+		fmt.Println()
+	}
+
+	if choix == "5" {
+		fmt.Println("Fermeture du jeu...")
+		run = false
+	}
+}
 
 
 	shopMenu(&perso, scanner)
