@@ -86,3 +86,59 @@ func takePot( p structure.Character){
 		}
 	}
 }
+
+
+
+func shopMenu(p *Personnage) {
+    for {
+        fmt.Println("\n=== 🛒 Boutique ===")
+        fmt.Println("1 - Acheter potion de vie (+50 PV) - 5 or")
+        fmt.Println("2 - Acheter potion de poison (10 dégâts) - 8 or")
+        fmt.Println("3 - Récupérer potion gratuite (+20 PV)")
+        fmt.Println("0 - Quitter la boutique")
+
+        var choix int
+        fmt.Scanln(&choix)
+
+        switch choix {
+        case 1:
+            acheterPotionVie(p)
+        case 2:
+            acheterPotionPoison(p)
+        case 0:
+            return
+        default:
+            fmt.Println("Choix invalide.")
+        }
+    }
+}
+
+
+
+func acheterPotionVie(p *Personnage) {
+    if p.Or < 5 {
+        fmt.Println("❌ Vous n'avez pas assez d'or.")
+        return
+    }
+
+    p.Or -= 5
+    p.PointsDeVieActuels += 50
+
+    if p.PointsDeVieActuels > p.PointsDeVieMaximum {
+        p.PointsDeVieActuels = p.PointsDeVieMaximum
+    }
+
+    fmt.Println("💖 Potion de vie achetée ! +50 PV")
+}
+
+
+
+func acheterPotionPoison(p *Personnage) {
+    if p.Or < 8 {
+        fmt.Println("❌ Vous n'avez pas assez d'or.")
+        return
+    }
+
+    p.Or -= 8
+    fmt.Println("☠️ Potion de poison achetée ! Elle infligera 10 dégâts au prochain monstre.")
+}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt";
+	"fmt"
 	"main/structure"
 )
 
@@ -9,8 +9,9 @@ func menu(player *structure.Character) {
 	for {
 		fmt.Println("\n===== MENU =====")
 		fmt.Println("1 - Afficher les informations du personnage")
-		fmt.Println("2 - Accéder à l'inventaire")
-		fmt.Println("3 - Quitter")
+		fmt.Println("2 - Accéder au magasin")
+		fmt.Println("3 - Accéder à l'inventaire")
+		fmt.Println("4 - Quitter")
 		fmt.Print("Votre choix : ")
 
 		var choice int
@@ -31,6 +32,18 @@ func menu(player *structure.Character) {
 			}
 
 		case 2:
+			shopMenu(p)
+
+			fmt.Println("\n0 - Retour")
+
+			var back int
+			fmt.Scan(&back)
+
+			if back == 0 {
+				continue
+			}
+		
+		case 3:
 			accessInventory(*player)
 
 			fmt.Println("\n0 - Retour")
@@ -42,7 +55,7 @@ func menu(player *structure.Character) {
 				continue
 			}
 
-		case 3:
+		case 4:
 			fmt.Println("Fermeture du jeu...")
 			return
 
