@@ -58,7 +58,7 @@ func combatBoss(
 		fmt.Println("========== COMBAT ==========")
 
 		fmt.Println(
-			perso.Prenom,
+			perso.Nom,
 			":",
 			perso.PointsDeVieActuels,
 			"/",
@@ -90,23 +90,7 @@ func combatBoss(
 			tourJoueur(perso, boss)
 
 			if boss.PointsDeVieActuels <= 0 {
-				fmt.Println()
-				fmt.Println("==========================")
-				fmt.Println("       BOSS VAINCU")
-				fmt.Println("==========================")
-
-				fmt.Println("Vous avez vaincu", boss.Nom)
-
-				fmt.Println(
-					"Vous gagnez",
-					boss.RecompenseArgent,
-					"pièces d'or.",
-				)
-
-				perso.Argent += boss.RecompenseArgent
-
-				gainExperience(perso, boss.RecompenseXP)
-
+				victoireBoss(perso, boss)
 				return
 			}
 
@@ -122,6 +106,7 @@ func combatBoss(
 
 			if perso.PointsDeVieActuels <= 0 {
 				isDead(perso)
+
 				fmt.Println()
 				fmt.Println("Le combat est terminé.")
 				return
@@ -167,7 +152,7 @@ func tourJoueur(
 	fmt.Println()
 	fmt.Println("===== VOTRE TOUR =====")
 	fmt.Println()
-	fmt.Println("Vous attaquez", boss.Nom, "!")
+	fmt.Println(perso.Nom, "attaque", boss.Nom, "!")
 
 	boss.PointsDeVieActuels -= degatsJoueur
 
@@ -175,11 +160,7 @@ func tourJoueur(
 		boss.PointsDeVieActuels = 0
 	}
 
-	fmt.Println(
-		"Vous infligez",
-		degatsJoueur,
-		"dégâts.",
-	)
+	fmt.Println("Vous infligez", degatsJoueur, "dégâts.")
 
 	fmt.Println(
 		"PV du boss :",
@@ -194,7 +175,7 @@ func tourBoss(
 	boss *structure.Boss,
 ) {
 	fmt.Println()
-	fmt.Println(boss.Nom, "vous attaque !")
+	fmt.Println(boss.Nom, "attaque", perso.Nom, "!")
 
 	perso.PointsDeVieActuels -= boss.Degats
 
@@ -214,4 +195,27 @@ func tourBoss(
 		"/",
 		perso.PointsDeVieMaximum,
 	)
+}
+
+func victoireBoss(
+	perso *structure.Character,
+	boss *structure.Boss,
+) {
+	fmt.Println()
+	fmt.Println("==========================")
+	fmt.Println("       BOSS VAINCU")
+	fmt.Println("==========================")
+
+	fmt.Println()
+	fmt.Println("Vous avez vaincu", boss.Nom)
+
+	fmt.Println(
+		"Vous gagnez",
+		boss.RecompenseArgent,
+		"pièces d'or.",
+	)
+
+	perso.Argent += boss.RecompenseArgent
+
+	gainExperience(perso, boss.RecompenseXP)
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"main/structure"
 	"os"
+	"strings"
+	"unicode"
 )
 
 func initCharacter(
@@ -33,11 +35,69 @@ func initCharacter(
 	}
 }
 
+func characterCreation(scanner *bufio.Scanner) structure.Character {
+	var nom string
+
+	fmt.Println()
+	fmt.Println("===== CRÉATION DU PERSONNAGE =====")
+
+	for {
+		fmt.Print("Choisissez le nom de votre personnage : ")
+
+		scanner.Scan()
+		nom = strings.TrimSpace(scanner.Text())
+
+		nomValide := true
+
+		if nom == "" {
+			nomValide = false
+		}
+
+		for _, lettre := range nom {
+			if !unicode.IsLetter(lettre) {
+				nomValide = false
+				break
+			}
+		}
+
+		if nomValide {
+			break
+		}
+
+		fmt.Println("Nom invalide.")
+		fmt.Println("Le nom doit contenir uniquement des lettres.")
+	}
+
+	nom = strings.ToLower(nom)
+
+	runes := []rune(nom)
+	runes[0] = unicode.ToUpper(runes[0])
+
+	nom = string(runes)
+
+	fmt.Println()
+	fmt.Println("Votre personnage s'appelle :", nom)
+
+	return initCharacter(
+		nom,
+		"",
+		26,
+		"Légionnaire",
+		1,
+		10000,
+		150,
+		[]structure.Item{
+			{Nom: "Potion de vie", Quantity: 1},
+			{Nom: "Épée", Quantity: 1},
+		},
+		100,
+	)
+}
+
 func displayInfo(perso structure.Character) {
 	fmt.Println()
 	fmt.Println("===== PERSONNAGE =====")
 	fmt.Println("Nom :", perso.Nom)
-	fmt.Println("Prénom :", perso.Prenom)
 	fmt.Println("Âge :", perso.Age)
 	fmt.Println("Classe :", perso.Classe)
 	fmt.Println("Niveau :", perso.Niveau)
@@ -63,21 +123,10 @@ func accessInventory(perso structure.Character) {
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 
-	perso := initCharacter(
-		"DE Bergerac",
-		"Dartagnan",
-		26,
-		"Légionnaire",
-		1,
-		10000,
-		150,
-		[]structure.Item{
-			{Nom: "Potion de vie", Quantity: 1},
-			{Nom: "Épée", Quantity: 1},
-		},
-		100,
-	)
+	// Création du personnage par le joueur
+	perso := characterCreation(scanner)
 
+	// Création du boss
 	boss := structure.NewBoss()
 
 	run := true
@@ -109,7 +158,7 @@ func main() {
 			combatBoss(&perso, &boss, scanner)
 
 		case "0":
-			fmt.Println("Au revoir !")
+			fmt.Println("Au revoir", perso.Nom, "!")
 			run = false
 
 		default:
@@ -213,6 +262,7 @@ func acheterItemPayant(c *structure.Character, nom string, prix int) {
 	for i := range c.Inventaire {
 		if c.Inventaire[i].Nom == nom {
 			c.Inventaire[i].Quantity++
+
 			fmt.Println("Vous avez acheté :", nom)
 			return
 		}
