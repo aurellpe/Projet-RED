@@ -13,13 +13,13 @@ type Boss struct {
 
 func NewBoss() Boss {
     return Boss{
-        Nom:                "Azrakar, Seigneur des Ombres",
-        Niveau:             5,
+        Nom:                "Gobelin",
+        Niveau:             1,
         PointsDeVieMaximum: 500,
-        PointsDeVieActuels: 500,
-        Degats:             35,
+        PointsDeVieActuels: 100,
+        Degats:             25,
         Initiative:         15,
-        RecompenseXP:       200,
-        RecompenseArgent:   100,
+        RecompenseXP:       150,
+        RecompenseArgent:   3,
     }
 }

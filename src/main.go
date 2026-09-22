@@ -9,6 +9,15 @@ import (
     "strings"
 )
 
+type Character struct {
+    nom                string
+    classe             string
+    niveau             int
+    pointsDeVieMax     int
+    pointsDeVieActuels int
+    inventaire         []string
+}
+
 func initCharacter(nom string, prenom string, age int, classe string, niveau int, pointsDeVieMaximum int, pointsDeVieActuels int, inventaire []structure.Item, argent int ) structure.Character {
     return structure.Character{
         Nom:                nom,
@@ -69,7 +78,8 @@ func main() {
         fmt.Println("2 - Accéder à l'inventaire")
         fmt.Println("3 - Accéder au shop")
         fmt.Println("4 - Accéder à la forge")
-        fmt.Println("5 - Quitter")
+        fmt.Println("5 - Combat")
+        fmt.Println("6 - Quitter")
         fmt.Println()
 
         fmt.Print("Votre choix : ")
@@ -108,7 +118,6 @@ func main() {
         }
     }
 
-    shopMenu(&player, scanner)
 }
 
 func takePot(p structure.Character) {
@@ -158,7 +167,7 @@ type shopItem struct {
 }
 
 var shopItems = []shopItem{
-    {Nom: "Potion de vie", Prix: 3},
+    {Nom: "Potion de vie", Prix: 0},
     {Nom: "Potion de poison", Prix: 6},
     {Nom: "Livre de Sort : Boule de Feu", Prix: 25},
     {Nom: "Fourrure de Loup", Prix: 4},
@@ -256,12 +265,69 @@ func createCharacter() structure.Character {
     classe, _ := reader.ReadString('\n')
     classe = strings.TrimSpace(classe)
 
-    // Valeurs par défaut
     niveau := 1
-    pvMax := 100
+    pvMax := 1000
     pvActu := 100
     inventaire := []structure.Item{}
     argent := 10
 
     return initCharacter(nom, prenom, age, classe, niveau, pvMax, pvActu, inventaire, argent)
+}
+
+func convertToCombatCharacter(p structure.Character) Character {
+    return Character{
+        nom:                p.Nom,
+        classe:             p.Classe,
+        niveau:             p.Niveau,
+        pointsDeVieMax:     p.PointsDeVieMaximum,
+        pointsDeVieActuels: p.PointsDeVieActuels,
+        inventaire:         []string{"Potion de vie"},
+    }
+}
+
+func trainingFight(player *structure.Character) {
+    fmt.Println("\nUn gobelin apparaît !")
+
+    goblinPV := 50
+    goblinAtk := 10
+
+    for {
+        fmt.Println("\n=== Combat ===")
+        fmt.Printf("Gobelin : %d PV\n", goblinPV)
+        fmt.Printf("%s : %d/%d PV\n", player.Nom, player.PointsDeVieActuels, player.PointsDeVieMaximum)
+
+        fmt.Println("1 - Attaquer")
+        fmt.Println("2 - Utiliser une potion")
+        fmt.Println("0 - Fuir")
+
+        choix := lireEntier()
+
+        if choix == 1 {
+            goblinPV -= 15
+            fmt.Println("Vous infligez 35 dégâts au gobelin.")
+        }
+
+        if choix == 2 {
+            fmt.Println("Potion non implémentée.")
+        }
+
+        if choix == 0 {
+            fmt.Println("Vous fuyez le combat.")
+            return
+        }
+
+        if goblinPV <= 0 {
+            fmt.Println("Vous avez vaincu le gobelin !")
+            return
+        }
+
+        player.PointsDeVieActuels -= goblinAtk
+        fmt.Printf("Le gobelin vous inflige %d dégâts.\n", goblinAtk)
+
+        if player.PointsDeVieActuels <= 0 {
+            fmt.Println("Vous êtes mort... Réanimation à 50% PV.")
+            player.PointsDeVieActuels = player.PointsDeVieMaximum / 2
+            return
+        }
+    }
 }
