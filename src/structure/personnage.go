@@ -19,6 +19,20 @@ type Character struct {
 	Argent              int
 }
 
-func(p *Character)AddInventory(item Item) {
-	p.Inventaire = append(p.Inventaire,item)
+func (p *Character) AddInventory(item Item) bool {
+
+	for i := range p.Inventaire {
+		if p.Inventaire[i].Nom == item.Nom {
+			p.Inventaire[i].Quantity += item.Quantity
+			return true
+		}
+	}
+
+	if len(p.Inventaire) >= 10 {
+		return false
+	}
+
+	p.Inventaire = append(p.Inventaire, item)
+
+	return true
 }
