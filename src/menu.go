@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"main/structure"
+    "fmt"
+    "main/structure"
 )
 
 func menu(player *structure.Character) {

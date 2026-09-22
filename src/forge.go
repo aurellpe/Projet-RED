@@ -77,7 +77,7 @@ func AccessForge(player *structure.Character) {
     fmt.Printf("Vous avez : %d or | %d débris\n\n", state.Argent, state.Debris)
     fmt.Printf("Arme équipée : %s (%d dégâts)\n\n", state.Arme, weaponDamage(state.Arme))
 
-    fmt.Println("--------- ARMES ---------")
+    fmt.Println("========= ARMES =========")
     fmt.Println("1 - Épée en bois (35 dégâts) - GRATUIT")
     fmt.Println("2 - Épée en métal (65 dégâts) - 4 débris + 5 or")
     fmt.Println("3 - Hache (50 dégâts) - 2 débris + 4 or")

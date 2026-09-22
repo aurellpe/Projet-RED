@@ -33,6 +33,11 @@ func displayInfo(player structure.Character) {
     fmt.Println("Points de vie :", player.PointsDeVieActuels, "/", player.PointsDeVieMaximum)
 }
 
+func pause() {
+    fmt.Println("\nAppuyez sur Entrée pour continuer...")
+    bufio.NewReader(os.Stdin).ReadBytes('\n')
+}
+
 func accessInventory(player structure.Character) {
     fmt.Println("===== INVENTAIRE =====")
 
@@ -50,17 +55,7 @@ func main() {
 
     scanner := bufio.NewScanner(os.Stdin)
 
-    player := initCharacter(
-        "DE Bergerac",
-        "Dartagnan",
-        26,
-        "Légionnaire",
-        1,
-        10000,
-        150,
-        []structure.Item{{Nom: "potion", Quantity: 0}, {Nom: "epee", Quantity: 1}},
-        100,
-    )
+    player := createCharacter()
 
     var run bool = true
 
@@ -82,14 +77,20 @@ func main() {
         choix := scanner.Text()
 
         if choix == "1" {
-            displayInfo(player)
-            fmt.Println()
-        }
+    displayInfo(player)
+    pause()
+    fmt.Println()
+    continue
+}
 
-        if choix == "2" {
-            accessInventory(player)
-            fmt.Println()
-        }
+
+      if choix == "2" {
+    accessInventory(player)
+    pause()
+    fmt.Println()
+    continue
+}
+
 
         if choix == "3" {
             shop(&player, bufio.NewReader(os.Stdin))
@@ -97,7 +98,7 @@ func main() {
         }
 
         if choix == "4" {
-            AccessForge(player)
+            AccessForge(&player)
             fmt.Println()
         }
 
@@ -129,7 +130,7 @@ func takePot(p structure.Character) {
 
 func shopMenu(c *structure.Character, scanner *bufio.Scanner) {
     for {
-        fmt.Println("\n----- Marchand -----")
+        fmt.Println("\n===== Marchand =====")
         fmt.Println("1. Potion de vie")
         fmt.Println("0. Retour")
 
@@ -167,7 +168,7 @@ var shopItems = []shopItem{
 
 func shop(c *structure.Character, reader *bufio.Reader) {
     for {
-        fmt.Println("\n----- Marchand -----")
+        fmt.Println("\n===== Marchand =====")
         for i, si := range shopItems {
             fmt.Printf("%d. %s (%d pièces d'or)\n", i+1, si.Nom, si.Prix)
         }
@@ -231,4 +232,36 @@ func levelUp(c *structure.Character) {
     fmt.Printf("Niveau supérieur ! Vous êtes maintenant niveau %d.\n", c.Niveau)
     fmt.Printf("Bonus : +%d points de vie maximum.\n", bonusPV)
     fmt.Printf("PV : %d / %d\n", c.PointsDeVieActuels, c.PointsDeVieMaximum)
+}
+
+func createCharacter() structure.Character {
+    reader := bufio.NewReader(os.Stdin)
+
+    fmt.Println("===== CRÉATION DU PERSONNAGE =====")
+
+    fmt.Print("Nom : ")
+    nom, _ := reader.ReadString('\n')
+    nom = strings.TrimSpace(nom)
+
+    fmt.Print("Prénom : ")
+    prenom, _ := reader.ReadString('\n')
+    prenom = strings.TrimSpace(prenom)
+
+    fmt.Print("Âge : ")
+    ageStr, _ := reader.ReadString('\n')
+    ageStr = strings.TrimSpace(ageStr)
+    age, _ := strconv.Atoi(ageStr)
+
+    fmt.Print("Classe : ")
+    classe, _ := reader.ReadString('\n')
+    classe = strings.TrimSpace(classe)
+
+    // Valeurs par défaut
+    niveau := 1
+    pvMax := 100
+    pvActu := 100
+    inventaire := []structure.Item{}
+    argent := 10
+
+    return initCharacter(nom, prenom, age, classe, niveau, pvMax, pvActu, inventaire, argent)
 }
