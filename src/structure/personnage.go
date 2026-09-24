@@ -17,6 +17,9 @@ type Character struct {
     XPmax               int
 	XPactu              int
 	Argent              int
+	Degats 				int
+	Debris				int
+	Arme				string
 }
 
 func (p *Character) AddInventory(item Item) bool {

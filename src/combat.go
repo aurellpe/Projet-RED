@@ -129,8 +129,9 @@ func trainingFight(player *structure.Character) {
         choix := lireEntier()
 
         if choix == 1 {
-            goblinPV -= 15
-            fmt.Println("Vous infligez 15 dégâts au gobelin.")
+            goblinPV -= player.Degats
+				fmt.Printf("Vous infligez %d dégâts au gobelin.\n", player.Degats)
+
         }
 
         if choix == 2 {
