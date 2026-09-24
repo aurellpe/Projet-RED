@@ -1,169 +1,204 @@
 package main
 
 import (
-    "fmt"
-    "main/structure"
+	"fmt"
+	"main/structure"
 )
 
 
 type ForgeItem struct {
-    Name   string
-    Damage int
-    Price  int
-    Debris int
-    Free   bool
+	Name   string
+	Damage int
+	Price  int
+	Debris int
+	Free   bool
 }
 
 var forgeItems = []ForgeItem{
-    {"Épée en bois", 35, 0, 0, true},
-    {"Épée en métal", 65, 5, 4, false},
-    {"Hache", 50, 4, 2, false},
+	{
+		Name:   "Épée en bois",
+		Damage: 35,
+		Price:  0,
+		Debris: 0,
+		Free:   true,
+	},
+	{
+		Name:   "Épée en métal",
+		Damage: 65,
+		Price:  5,
+		Debris: 4,
+		Free:   false,
+	},
+	{
+		Name:   "Hache",
+		Damage: 50,
+		Price:  4,
+		Debris: 2,
+		Free:   false,
+	},
 }
 
-// =====================================================
-// ÉTAT DE LA FORGE
-// =====================================================
-
 type ForgeState struct {
-    Argent int
-    Debris int
-    Arme   string
+	Argent int
+	Debris int
+	Arme   string
 }
 
 var forgeStates = make(map[*structure.Character]*ForgeState)
 
 func getForgeState(player *structure.Character) *ForgeState {
-    if forgeStates[player] == nil {
-        forgeStates[player] = &ForgeState{
-            Argent: 10,
-            Debris: 10,
-            Arme:   "Épée en bois",
-        }
-    }
-    return forgeStates[player]
-}
 
-// =====================================================
-// DÉGÂTS DES ARMES
-// =====================================================
+	if forgeStates[player] == nil {
+		forgeStates[player] = &ForgeState{
+			Argent: 10,
+			Debris: 10,
+			Arme:   "Épée en bois",
+		}
+	}
+
+	return forgeStates[player]
+}
 
 func weaponDamage(name string) int {
-    switch name {
-    case "Épée en bois":
-        return 35
-    case "Épée en métal":
-        return 65
-    case "Hache":
-        return 50
-    default:
-        return 5
-    }
-}
 
-// =====================================================
-// FORGE
-// =====================================================
+	switch name {
+	case "Épée en bois":
+		return 35
+
+	case "Épée en métal":
+		return 65
+
+	case "Hache":
+		return 50
+	}
+
+	return 5
+}
 
 func AccessForge(player *structure.Character) {
 
-    state := getForgeState(player)
+	state := getForgeState(player)
 
-    fmt.Println("\n================================")
-    fmt.Println("             FORGE")
-    fmt.Println("================================")
-    fmt.Printf("Vous avez : %d or | %d débris\n\n", state.Argent, state.Debris)
-    fmt.Printf("Arme équipée : %s (%d dégâts)\n\n", state.Arme, weaponDamage(state.Arme))
+	for {
 
-    fmt.Println("========= ARMES =========")
-    fmt.Println("1 - Épée en bois (35 dégâts) - GRATUIT")
-    fmt.Println("2 - Épée en métal (65 dégâts) - 4 débris + 5 or")
-    fmt.Println("3 - Hache (50 dégâts) - 2 débris + 4 or")
-    fmt.Println("0 - Retour\n")
+		fmt.Println()
+		fmt.Println("================================")
+		fmt.Println("             FORGE")
+		fmt.Println("================================")
 
-    choice := lireEntier()
+		fmt.Printf(
+			"Vous avez : %d pièces d'or | %d débris\n",
+			state.Argent,
+			state.Debris,
+		)
 
-    switch choice {
+		fmt.Println()
 
-    case 0:
-        return
+		fmt.Printf(
+			"Arme équipée : %s (%d dégâts)\n",
+			state.Arme,
+			weaponDamage(state.Arme),
+		)
 
-    case 1:
-        if state.Arme == "Épée en bois" {
-            fmt.Println("Vous avez déjà l'épée en bois équipée.")
-            return
-        }
+		fmt.Println()
+		fmt.Println("--------- ARMES ---------")
 
-        if !player.AddInventory(structure.Item{"Épée en bois", 1}) {
-            fmt.Println("Inventaire plein (max 10).")
-            return
-        }
+		fmt.Println("1 - Épée en bois (35 dégâts) - GRATUIT")
 
-        state.Arme = "Épée en bois"
-        fmt.Println("\nVous récupérez gratuitement une épée en bois !")
-        fmt.Println("Ajoutée à l'inventaire.")
-        return
+		fmt.Println("2 - Épée en métal (65 dégâts) - 4 débris + 5 or")
 
-    case 2:
-        if state.Arme == "Épée en métal" {
-            fmt.Println("Vous avez déjà l'épée en métal équipée.")
-            return
-        }
+		fmt.Println("3 - Hache (50 dégâts) - 2 débris + 4 or")
 
-        if state.Argent < 5 {
-            fmt.Printf("Pas assez d'or ! Il manque %d.\n", 5-state.Argent)
-            return
-        }
+		fmt.Println("0 - Retour")
+		fmt.Println()
 
-        if state.Debris < 4 {
-            fmt.Printf("Pas assez de débris ! Il manque %d.\n", 4-state.Debris)
-            return
-        }
+		choice := lireEntier()
 
-        if !player.AddInventory(structure.Item{"Épée en métal", 1}) {
-            fmt.Println("Inventaire plein (max 10).")
-            return
-        }
+		if choice == 0 {
+			return
+		}
 
-        state.Argent -= 5
-        state.Debris -= 4
-        state.Arme = "Épée en métal"
+		if choice < 1 || choice > len(forgeItems) {
+			fmt.Println("Choix invalide.")
+			continue
+		}
 
-        fmt.Println("\nVous fabriquez et équipez : Épée en métal !")
-        fmt.Println("Dégâts : 65")
-        fmt.Printf("Or restant : %d | Débris restants : %d\n", state.Argent, state.Debris)
-        return
+		item := forgeItems[choice-1]
 
-    case 3:
-        if state.Arme == "Hache" {
-            fmt.Println("Vous avez déjà la hache équipée.")
-            return
-        }
+		if item.Free {
 
-        if state.Argent < 4 {
-            fmt.Printf("Pas assez d'or ! Il manque %d.\n", 4-state.Argent)
-            return
-        }
+			if state.Arme == item.Name {
+				fmt.Println("Vous avez déjà l'épée en bois équipée.")
+				continue
+			}
 
-        if state.Debris < 2 {
-            fmt.Printf("Pas assez de débris ! Il manque %d.\n", 2-state.Debris)
-            return
-        }
+			state.Arme = item.Name
 
-        if !player.AddInventory(structure.Item{"Hache", 1}) {
-            fmt.Println("Inventaire plein (max 10).")
-            return
-        }
+			fmt.Println()
+			fmt.Println("Vous récupérez gratuitement une épée en bois !")
+			fmt.Printf(
+				"Arme équipée : %s (%d dégâts)\n",
+				state.Arme,
+				weaponDamage(state.Arme),
+			)
 
-        state.Argent -= 4
-        state.Debris -= 2
-        state.Arme = "Hache"
+			continue
+		}
 
-        fmt.Println("\nVous fabriquez et équipez : Hache !")
-        fmt.Println("Dégâts : 50")
-        fmt.Printf("Or restant : %d | Débris restants : %d\n", state.Argent, state.Debris)
-        return
+		if state.Argent < item.Price {
 
-    default:
-        fmt.Println("Choix invalide.")
-    }
+			fmt.Printf(
+				"Pas assez d'or ! Il vous manque %d pièce(s).\n",
+				item.Price-state.Argent,
+			)
+
+			continue
+		}
+
+		if state.Debris < item.Debris {
+
+			fmt.Printf(
+				"Pas assez de débris ! Il vous manque %d débris.\n",
+				item.Debris-state.Debris,
+			)
+
+			continue
+		}
+
+		if state.Arme == item.Name {
+
+			fmt.Printf(
+				"Vous avez déjà équipé : %s.\n",
+				item.Name,
+			)
+
+			continue
+		}
+
+		state.Argent -= item.Price
+		state.Debris -= item.Debris
+
+		state.Arme = item.Name
+
+		fmt.Println()
+		fmt.Printf(
+			"Vous fabriquez et équipez : %s !\n",
+			item.Name,
+		)
+
+		fmt.Printf(
+			"Dégâts : %d\n",
+			item.Damage,
+		)
+
+		fmt.Printf(
+			"Or restant : %d\n",
+			state.Argent,
+		)
+
+		fmt.Printf(
+			"Débris restants : %d\n",
+			state.Debris,
+		)
+	}
 }

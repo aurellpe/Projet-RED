@@ -1,8 +1,10 @@
 package main
 
-import ("fmt"
-		"bufio"
-		"os"
+import (
+	"bufio"
+	"fmt"
+	"main/structure"
+	"os"
 )
 
 type Monster struct {
@@ -17,7 +19,7 @@ var reader = bufio.NewReader(os.Stdin)
 
 func initGoblin() Monster {
 	return Monster{
-		nom:                "Azrakar, Seigneur des Ombres",
+		nom:                "Gobelin",
 		pointsDeVieMax:     1000,
 		pointsDeVieActuels: 100,
 		pointsAttaque:      25,
@@ -110,7 +112,6 @@ func characterTurn(joueur *Character, monstre *Monster) {
 }
 
 func trainingFight(player *structure.Character) {
-
     fmt.Println("\nUn gobelin apparaît !")
 
     goblinPV := 50

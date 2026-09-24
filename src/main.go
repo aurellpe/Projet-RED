@@ -1,333 +1,292 @@
 package main
 
 import (
-    "bufio"
-    "fmt"
-    "main/structure"
-    "os"
-    "strconv"
-    "strings"
+	"bufio"
+	"fmt"
+	"main/structure"
+	"os"
+	"strconv"
+	"strings"
 )
 
 type Character struct {
-    nom                string
-    classe             string
-    niveau             int
-    pointsDeVieMax     int
-    pointsDeVieActuels int
-    inventaire         []string
+	nom                string
+	classe             string
+	niveau             int
+	pointsDeVieMax     int
+	pointsDeVieActuels int
+	inventaire         []string
 }
 
-func initCharacter(nom string, prenom string, age int, classe string, niveau int, pointsDeVieMaximum int, pointsDeVieActuels int, inventaire []structure.Item, argent int ) structure.Character {
-    return structure.Character{
-        Nom:                nom,
-        Prenom:             prenom,
-        Age:                age,
-        Classe:             classe,
-        Niveau:             niveau,
-        PointsDeVieMaximum: pointsDeVieMaximum,
-        PointsDeVieActuels: pointsDeVieActuels,
-        Inventaire:         inventaire,
-        Argent:             argent,
-    }
+func initCharacter(nom string, prenom string, age int, classe string, niveau int, pointsDeVieMaximum int, pointsDeVieActuels int, inventaire []structure.Item, argent int, xpmax int, xpactu int) structure.Character {
+	return structure.Character{
+		Nom:                nom,
+		Prenom:             prenom,
+		Age:                age,
+		Classe:             classe,
+		Niveau:             niveau,
+		PointsDeVieMaximum: pointsDeVieMaximum,
+		PointsDeVieActuels: pointsDeVieActuels,
+		Inventaire:         inventaire,
+		Argent:             argent,
+	    XPmax:              xpmax,
+		XPactu:             xpactu,
+	}
 }
 
 func displayInfo(player structure.Character) {
-    fmt.Println("===== PERSONNAGE =====")
-    fmt.Println("Nom :", player.Nom)
-    fmt.Println("Prénom :", player.Prenom)
-    fmt.Println("Âge :", player.Age)
-    fmt.Println("Classe :", player.Classe)
-    fmt.Println("Niveau :", player.Niveau)
-    fmt.Println("Points de vie :", player.PointsDeVieActuels, "/", player.PointsDeVieMaximum)
+	fmt.Println("===== PERSONNAGE =====")
+	fmt.Println("Nom :", player.Nom)
+	fmt.Println("Prénom :", player.Prenom)
+	fmt.Println("Âge :", player.Age)
+	fmt.Println("Classe :", player.Classe)
+	fmt.Println("Niveau :", player.Niveau)
+	fmt.Println("Points de vie :", player.PointsDeVieActuels, "/", player.PointsDeVieMaximum)
 }
 
 func pause() {
-    fmt.Println("\nAppuyez sur Entrée pour continuer...")
-    bufio.NewReader(os.Stdin).ReadBytes('\n')
+	fmt.Println("\nAppuyez sur Entrée pour continuer...")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
 func accessInventory(player structure.Character) {
-    fmt.Println("===== INVENTAIRE =====")
+	fmt.Println("===== INVENTAIRE =====")
 
-    if len(player.Inventaire) == 0 {
-        fmt.Println("L'inventaire est vide.")
-        return
-    }
+	if len(player.Inventaire) == 0 {
+		fmt.Println("L'inventaire est vide.")
+		return
+	}
 
-    for i, objet := range player.Inventaire {
-        fmt.Println(i+1, "-", objet)
-    }
+	for i, objet := range player.Inventaire {
+		fmt.Println(i+1, "-", objet)
+	}
 }
 
 func main() {
 
-    scanner := bufio.NewScanner(os.Stdin)
+	player := createCharacter()
 
-    player := createCharacter()
+	var run bool = true
 
-    var run bool = true
-
-    for run {
-
-        fmt.Println()
-        fmt.Println("==============================")
-        fmt.Println("           MENU")
-        fmt.Println("==============================")
-        fmt.Println("1 - Afficher les informations du personnage")
-        fmt.Println("2 - Accéder à l'inventaire")
-        fmt.Println("3 - Accéder au shop")
-        fmt.Println("4 - Accéder à la forge")
-        fmt.Println("5 - Combat")
-        fmt.Println("6 - Quitter")
-        fmt.Println()
-
-        fmt.Print("Votre choix : ")
-        scanner.Scan()
-        choix := scanner.Text()
-
-        if choix == "1" {
-    displayInfo(player)
-    pause()
-    fmt.Println()
-    continue
-}
-
-
-      if choix == "2" {
-    accessInventory(player)
-    pause()
-    fmt.Println()
-    continue
-}
-
-
-        if choix == "3" {
-            shop(&player, bufio.NewReader(os.Stdin))
-            fmt.Println()
-        }
-
-        if choix == "4" {
-            AccessForge(&player)
-            fmt.Println()
-        }
-
-        if choix == "5" {
-            fmt.Println("Fermeture du jeu...")
-            run = false
-        }
-    }
-
+	for run {
+		menu(&player)
+	}
 }
 
 func takePot(p structure.Character) {
-    for i, it := range p.Inventaire {
-        if it.Nom == "potion" && it.Quantity > 0 {
-            p.PointsDeVieActuels += 50
-            if p.PointsDeVieActuels > p.PointsDeVieMaximum {
-                p.PointsDeVieActuels = p.PointsDeVieMaximum
-            }
-            p.Inventaire[i].Quantity--
+	for i, it := range p.Inventaire {
+		if it.Nom == "potion" && it.Quantity > 0 {
+			p.PointsDeVieActuels += 50
+			if p.PointsDeVieActuels > p.PointsDeVieMaximum {
+				p.PointsDeVieActuels = p.PointsDeVieMaximum
+			}
+			p.Inventaire[i].Quantity--
 
-            if p.Inventaire[i].Quantity == 0 {
-                p.Inventaire = append(p.Inventaire[:i], p.Inventaire[i+1:]...)
-            }
-            return
-        }
-    }
+			if p.Inventaire[i].Quantity == 0 {
+				p.Inventaire = append(p.Inventaire[:i], p.Inventaire[i+1:]...)
+			}
+			return
+		}
+	}
 }
 
 func shopMenu(c *structure.Character, scanner *bufio.Scanner) {
-    for {
-        fmt.Println("\n===== Marchand =====")
-        fmt.Println("1. Potion de vie")
-        fmt.Println("0. Retour")
+	for {
+		fmt.Println("\n===== Marchand =====")
+		fmt.Println("1. Potion de vie")
+		fmt.Println("2. fourrure de brice")
+		fmt.Println("3. casque de guigui")
+		fmt.Println("0. Retour")
 
-        scanner.Scan()
-        choix := scanner.Text()
+		scanner.Scan()
+		choix := scanner.Text()
 
-        switch choix {
-        case "1":
-            acheterItem(c, "Potion de vie")
-        case "0":
-            return
-        default:
-            fmt.Println("Choix invalide.")
-        }
-    }
+		switch choix {
+		case "1":
+			acheterItem(c, "Potion de vie")
+		case "2":
+			acheterItem(c, "fourrure de brice")
+		case "3":
+			acheterItem(c, "casque de guigui")
+		case "0":
+			return
+		default:
+			fmt.Println("Choix invalide.")
+		}
+	}
 }
 
 func acheterItem(c *structure.Character, nom string) {
-    fmt.Println("Vous avez acheté :", nom)
+	fmt.Println("Vous avez acheté :", nom)
 }
 
 type shopItem struct {
-    Nom  string
-    Prix int
+	Nom  string
+	Prix int
 }
 
 var shopItems = []shopItem{
-    {Nom: "Potion de vie", Prix: 0},
-    {Nom: "Potion de poison", Prix: 6},
-    {Nom: "Livre de Sort : Boule de Feu", Prix: 25},
-    {Nom: "Fourrure de Loup", Prix: 4},
-    {Nom: "Peau de Troll", Prix: 7},
-    {Nom: "Cuir de vache", Prix: 1},
+	{Nom: "Potion de vie", Prix: 0},
+	{Nom: "Potion de poison", Prix: 6},
+	{Nom: "Livre de Sort : Boule de Feu", Prix: 25},
+	{Nom: "Fourrure de Loup", Prix: 4},
+	{Nom: "Peau de Troll", Prix: 7},
+	{Nom: "Cuir de vache", Prix: 1},
 }
 
 func shop(c *structure.Character, reader *bufio.Reader) {
-    for {
-        fmt.Println("\n===== Marchand =====")
-        for i, si := range shopItems {
-            fmt.Printf("%d. %s (%d pièces d'or)\n", i+1, si.Nom, si.Prix)
-        }
-        fmt.Println("0. Retour")
-        fmt.Println("Votre argent :", c.Argent, "pièces d'or")
+	for {
+		fmt.Println("\n===== Marchand =====")
+		for i, si := range shopItems {
+			fmt.Printf("%d. %s (%d pièces d'or)\n", i+1, si.Nom, si.Prix)
+		}
+		fmt.Println("0. Retour")
+		fmt.Println("Votre argent :", c.Argent, "pièces d'or")
 
-        choix := lireChoix(reader)
+		choix := lireChoix(reader)
 
-        if choix == 0 {
-            return
-        } else if choix >= 1 && choix <= len(shopItems) {
-            si := shopItems[choix-1]
-            acheterItemPayant(c, si.Nom, si.Prix)
-        } else {
-            fmt.Println("Choix invalide.")
-        }
-    }
+		if choix == 0 {
+			return
+		} else if choix >= 1 && choix <= len(shopItems) {
+			si := shopItems[choix-1]
+			acheterItemPayant(c, si.Nom, si.Prix)
+		} else {
+			fmt.Println("Choix invalide.")
+		}
+	}
 }
 
 func acheterItemPayant(c *structure.Character, nom string, prix int) {
-    if c.Argent < prix {
-        fmt.Println("Vous n'avez pas assez d'argent pour acheter :", nom)
-        return
-    }
+	if c.Argent < prix {
+		fmt.Println("Vous n'avez pas assez d'argent pour acheter :", nom)
+		return
+	}
 
-    c.Argent -= prix
-    c.AddInventory(structure.Item{Nom: nom, Quantity: 1})
-    fmt.Println("Vous avez acheté :", nom)
+	c.Argent -= prix
+	c.AddInventory(structure.Item{Nom: nom, Quantity: 1})
+	fmt.Println("Vous avez acheté :", nom)
 }
 
 func lireChoix(reader *bufio.Reader) int {
-    fmt.Print("Choix : ")
-    ligne, _ := reader.ReadString('\n')
-    ligne = strings.TrimSpace(ligne)
-    choix, err := strconv.Atoi(ligne)
-    if err != nil {
-        return -1
-    }
-    return choix
+	fmt.Print("Choix : ")
+	ligne, _ := reader.ReadString('\n')
+	ligne = strings.TrimSpace(ligne)
+	choix, err := strconv.Atoi(ligne)
+	if err != nil {
+		return -1
+	}
+	return choix
 }
 
 func gainExperience(c *structure.Character, xpGagne int) {
-    fmt.Printf("Vous gagnez %d points d'expérience.\n", xpGagne)
-    c.XPactu += xpGagne
+	fmt.Printf("Vous gagnez %d points d'expérience.\n", xpGagne)
+	c.XPactu += xpGagne
 
-    for c.XPactu >= c.XPmax {
-        c.XPactu -= c.XPmax
-        levelUp(c)
-    }
+	for c.XPactu >= c.XPmax {
+		c.XPactu -= c.XPmax
+		levelUp(c)
+	}
 }
 
 func levelUp(c *structure.Character) {
-    c.Niveau++
+	c.Niveau++
 
-    bonusPV := 10
-    c.PointsDeVieMaximum += bonusPV
-    c.PointsDeVieActuels += bonusPV
+	bonusPV := 10
+	c.PointsDeVieMaximum += bonusPV
+	c.PointsDeVieActuels += bonusPV
 
-    c.XPmax = int(float64(c.XPactu) * 1.2)
+	c.XPmax = int(float64(c.XPactu) * 1.2)
 
-    fmt.Printf("Niveau supérieur ! Vous êtes maintenant niveau %d.\n", c.Niveau)
-    fmt.Printf("Bonus : +%d points de vie maximum.\n", bonusPV)
-    fmt.Printf("PV : %d / %d\n", c.PointsDeVieActuels, c.PointsDeVieMaximum)
+	fmt.Printf("Niveau supérieur ! Vous êtes maintenant niveau %d.\n", c.Niveau)
+	fmt.Printf("Bonus : +%d points de vie maximum.\n", bonusPV)
+	fmt.Printf("PV : %d / %d\n", c.PointsDeVieActuels, c.PointsDeVieMaximum)
 }
 
 func createCharacter() structure.Character {
-    reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(os.Stdin)
 
-    fmt.Println("===== CRÉATION DU PERSONNAGE =====")
+	fmt.Println("===== CRÉATION DU PERSONNAGE =====")
 
-    fmt.Print("Nom : ")
-    nom, _ := reader.ReadString('\n')
-    nom = strings.TrimSpace(nom)
+	fmt.Print("Nom : ")
+	nom, _ := reader.ReadString('\n')
+	nom = strings.TrimSpace(nom)
 
-    fmt.Print("Prénom : ")
-    prenom, _ := reader.ReadString('\n')
-    prenom = strings.TrimSpace(prenom)
+	fmt.Print("Prénom : ")
+	prenom, _ := reader.ReadString('\n')
+	prenom = strings.TrimSpace(prenom)
 
-    fmt.Print("Âge : ")
-    ageStr, _ := reader.ReadString('\n')
-    ageStr = strings.TrimSpace(ageStr)
-    age, _ := strconv.Atoi(ageStr)
+	fmt.Print("Âge : ")
+	ageStr, _ := reader.ReadString('\n')
+	ageStr = strings.TrimSpace(ageStr)
+	age, _ := strconv.Atoi(ageStr)
 
-    fmt.Print("Classe : ")
-    classe, _ := reader.ReadString('\n')
-    classe = strings.TrimSpace(classe)
+	fmt.Print("Classe : ")
+	classe, _ := reader.ReadString('\n')
+	classe = strings.TrimSpace(classe)
 
-    niveau := 1
-    pvMax := 1000
-    pvActu := 100
-    inventaire := []structure.Item{}
-    argent := 10
+	niveau := 1
+	pvMax := 1000
+	pvActu := 100
+	inventaire := []structure.Item{}
+	argent := 10
 
-    return initCharacter(nom, prenom, age, classe, niveau, pvMax, pvActu, inventaire, argent)
+	return initCharacter(nom, prenom, age, classe, niveau, pvMax, pvActu, inventaire, argent, 100, 0)
 }
 
 func convertToCombatCharacter(p structure.Character) Character {
-    return Character{
-        nom:                p.Nom,
-        classe:             p.Classe,
-        niveau:             p.Niveau,
-        pointsDeVieMax:     p.PointsDeVieMaximum,
-        pointsDeVieActuels: p.PointsDeVieActuels,
-        inventaire:         []string{"Potion de vie"},
-    }
+	return Character{
+		nom:                p.Nom,
+		classe:             p.Classe,
+		niveau:             p.Niveau,
+		pointsDeVieMax:     p.PointsDeVieMaximum,
+		pointsDeVieActuels: p.PointsDeVieActuels,
+		inventaire:         []string{"Potion de vie"},
+	}
 }
 
-func trainingFight(player *structure.Character) {
-    fmt.Println("\nUn gobelin apparaît !")
+func trainingFightCommand(player *structure.Character) {
+	fmt.Println("\nUn gobelin apparaît !")
 
-    goblinPV := 50
-    goblinAtk := 10
+	goblinPV := 50
+	goblinAtk := 10
 
-    for {
-        fmt.Println("\n=== Combat ===")
-        fmt.Printf("Gobelin : %d PV\n", goblinPV)
-        fmt.Printf("%s : %d/%d PV\n", player.Nom, player.PointsDeVieActuels, player.PointsDeVieMaximum)
+	for {
+		fmt.Println("\n=== Combat ===")
+		fmt.Printf("Gobelin : %d PV\n", goblinPV)
+		fmt.Printf("%s : %d/%d PV\n", player.Nom, player.PointsDeVieActuels, player.PointsDeVieMaximum)
 
-        fmt.Println("1 - Attaquer")
-        fmt.Println("2 - Utiliser une potion")
-        fmt.Println("0 - Fuir")
+		fmt.Println("1 - Attaquer")
+		fmt.Println("2 - Utiliser une potion")
+		fmt.Println("0 - Fuir")
 
-        choix := lireEntier()
+		choix := lireEntier()
 
-        if choix == 1 {
-            goblinPV -= 15
-            fmt.Println("Vous infligez 35 dégâts au gobelin.")
-        }
+		if choix == 1 {
+			goblinPV -= 15
+			fmt.Println("Vous infligez 35 dégâts au gobelin.")
+		}
 
-        if choix == 2 {
-            fmt.Println("Potion non implémentée.")
-        }
+		if choix == 2 {
+			fmt.Println("Potion non implémentée.")
+		}
 
-        if choix == 0 {
-            fmt.Println("Vous fuyez le combat.")
-            return
-        }
+		if choix == 0 {
+			fmt.Println("Vous fuyez le combat.")
+			return
+		}
 
-        if goblinPV <= 0 {
-            fmt.Println("Vous avez vaincu le gobelin !")
-            return
-        }
+		if goblinPV <= 0 {
+			fmt.Println("Vous avez vaincu le gobelin !")
+			return
+		}
 
-        player.PointsDeVieActuels -= goblinAtk
-        fmt.Printf("Le gobelin vous inflige %d dégâts.\n", goblinAtk)
+		player.PointsDeVieActuels -= goblinAtk
+		fmt.Printf("Le gobelin vous inflige %d dégâts.\n", goblinAtk)
 
-        if player.PointsDeVieActuels <= 0 {
-            fmt.Println("Vous êtes mort... Réanimation à 50% PV.")
-            player.PointsDeVieActuels = player.PointsDeVieMaximum / 2
-            return
-        }
-    }
+		if player.PointsDeVieActuels <= 0 {
+			fmt.Println("Vous êtes mort... Réanimation à 50% PV.")
+			player.PointsDeVieActuels = player.PointsDeVieMaximum / 2
+			return
+		}
+	}
 }

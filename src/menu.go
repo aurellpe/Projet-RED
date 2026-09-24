@@ -12,16 +12,16 @@ func menu(player *structure.Character) {
     for {
 
         fmt.Println()
-        fmt.Println("==============================")
-        fmt.Println("           MENU")
-        fmt.Println("==============================")
-
-        fmt.Println("1 - Afficher les informations du personnage")
-        fmt.Println("2 - Accéder à l'inventaire")
-        fmt.Println("3 - Accéder au shop")
-        fmt.Println("4 - Accéder à la forge")
-        fmt.Println("5 - Combat")
-        fmt.Println("6 - Quitter")
+        fmt.Println("*******************************")
+        fmt.Println("             MENU")
+        fmt.Println("*******************************")
+        fmt.Println()
+        fmt.Println("1 : Afficher les informations du personnage")
+        fmt.Println("2 : Accéder à l'inventaire")
+        fmt.Println("3 : Accéder au shop")
+        fmt.Println("4 : Accéder à la forge")
+        fmt.Println("5 : Combat")
+        fmt.Println("6 : Quitter")
         fmt.Println()
 
         choix := lireEntier()
