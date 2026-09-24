@@ -5,9 +5,6 @@ import (
     "main/structure"
 )
 
-// =====================================================
-// OBJETS DE LA FORGE
-// =====================================================
 
 type ForgeItem struct {
     Name   string

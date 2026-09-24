@@ -1,5 +1,10 @@
 package main
 
+import ("fmt"
+		"bufio"
+		"os"
+)
+
 type Monster struct {
 	nom                string
 	pointsDeVieMax     int
