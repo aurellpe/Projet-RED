@@ -13,10 +13,11 @@ type Monster struct {
 	Initiative int
 	XP         int
 	Or         int
+	Debris     int
 }
 
 func initGoblin() Monster {
-	return Monster{Nom: "mirco la menace", PVMax: 150, PV: 10, Attaque: 15, Initiative: 10, XP: 40, Or: 10}
+	return Monster{Nom: "mirco la menace", PVMax: 150, PV: 150, Attaque: 10, Initiative: 10, XP: 40, Or: 10, Debris: 6}
 }
 
 func isDead(p *structure.Character) bool {
@@ -134,6 +135,7 @@ func trainingFightCommand(player *structure.Character) {
 		fmt.Printf("Vous avez vaincu %s !\n", m.Nom)
 		gainExperience(player, m.XP)
 		player.Argent += m.Or
+		player.Debris += m.Debris
 	} else {
 		isDead(player)
 		fmt.Println("Vous avez perdu !")

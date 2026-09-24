@@ -416,7 +416,7 @@ func createCharacter() structure.Character {
 		100, 
 		100, 
 		0,
-		5, 
+		15, 
 	)
 
 	p.Initiative = initiative
