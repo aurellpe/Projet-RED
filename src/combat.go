@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"main/structure"
 	"os"
 )
 
@@ -109,51 +108,4 @@ func characterTurn(joueur *Character, monstre *Monster) {
 	default:
 		fmt.Println("Choix invalide.")
 	}
-}
-
-func trainingFight(player *structure.Character) {
-    fmt.Println("\nUn gobelin apparaît !")
-
-    goblinPV := 50
-    goblinAtk := 10
-
-    for {
-        fmt.Println("\n=== Combat ===")
-        fmt.Printf("Gobelin : %d PV\n", goblinPV)
-        fmt.Printf("%s : %d/%d PV\n", player.Nom, player.PointsDeVieActuels, player.PointsDeVieMaximum)
-
-        fmt.Println("1 - Attaquer")
-        fmt.Println("2 - Utiliser une potion")
-        fmt.Println("0 - Fuir")
-
-        choix := lireEntier()
-
-        if choix == 1 {
-            goblinPV -= 15
-            fmt.Println("Vous infligez 15 dégâts au gobelin.")
-        }
-
-        if choix == 2 {
-            fmt.Println("Potion non implémentée.")
-        }
-
-        if choix == 0 {
-            fmt.Println("Vous fuyez le combat.")
-            return
-        }
-
-        if goblinPV <= 0 {
-            fmt.Println("Vous avez vaincu le gobelin !")
-            return
-        }
-
-        player.PointsDeVieActuels -= goblinAtk
-        fmt.Printf("Le gobelin vous inflige %d dégâts.\n", goblinAtk)
-
-        if player.PointsDeVieActuels <= 0 {
-            fmt.Println("Vous êtes mort... Réanimation à 50% PV.")
-            player.PointsDeVieActuels = player.PointsDeVieMaximum / 2
-            return
-        }
-    }
 }

@@ -49,7 +49,7 @@ func menu(player *structure.Character) {
             continue
 
         case 5:
-            trainingFight(player)
+            trainingFightCommand(player)
             pause()
             continue
 
