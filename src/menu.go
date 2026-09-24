@@ -1,66 +1,38 @@
 package main
 
 import (
-    "bufio"
-    "fmt"
-    "main/structure"
-    "os"
+	"fmt"
+	"main/structure"
 )
 
-func menu(player *structure.Character) {
+func menu(p *structure.Character) bool {
+	fmt.Println("\n===== MENU PRINCIPAL =====")
+	fmt.Println("1. Afficher les informations du personnage")
+	fmt.Println("2. Accéder à l'inventaire")
+	fmt.Println("3. Marchand")
+	fmt.Println("4. Forgeron")
+	fmt.Println("5. Combat")
+	fmt.Println("6. Qui sont-ils ?")
+	fmt.Println("0. Quitter")
 
-    for {
-
-        fmt.Println()
-        fmt.Println("*******************************")
-        fmt.Println("             MENU")
-        fmt.Println("*******************************")
-        fmt.Println()
-        fmt.Println("1 : Afficher les informations du personnage")
-        fmt.Println("2 : Accéder à l'inventaire")
-        fmt.Println("3 : Accéder au shop")
-        fmt.Println("4 : Accéder à la forge")
-        fmt.Println("5 : Combat")
-        fmt.Println("6 : Quitter")
-        fmt.Println()
-
-        choix := lireEntier()
-
-        switch choix {
-
-        case 1:
-            displayInfo(*player)
-            pause()
-            continue
-
-        case 2:
-            accessInventory(*player)
-            pause()
-            continue
-
-        case 3:
-            shop(player, bufio.NewReader(os.Stdin))
-            pause()
-            continue
-
-        case 4:
-            AccessForge(player)
-            pause()
-            continue
-
-        case 5:
-            trainingFightCommand(player)
-            pause()
-            continue
-
-        case 6:
-            fmt.Println("Fermeture du jeu...")
-            return
-
-        default:
-            fmt.Println("Choix invalide.")
-            pause()
-            continue
-        }
-    }
+	switch lireEntier() {
+	case 1:
+		displayInfo(*p)
+	case 2:
+		inventoryMenu(p, nil)
+	case 3:
+		shop(p, lecteur)
+	case 4:
+		AccessForge(p)
+	case 5:
+		trainingFightCommand(p)
+	case 6:
+		whoAreThey()
+	case 0:
+		fmt.Println(" Ciao!")
+		return false
+	default:
+		fmt.Println("Choix invalide.")
+	}
+	return true
 }

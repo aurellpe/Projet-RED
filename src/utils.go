@@ -1,20 +1,30 @@
 package main
 
 import (
-    "fmt"
-    "strconv"
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 )
 
 func lireEntier() int {
-    var saisie string
+	return lireChoix(lecteur)
+}
 
-    fmt.Print("Votre choix : ")
-    fmt.Scan(&saisie)
+func lireChoix(reader *bufio.Reader) int {
+	fmt.Print("Choix : ")
 
-    n, err := strconv.Atoi(saisie)
-    if err != nil {
-        return -1
-    }
+	ligne, err := reader.ReadString('\n')
+	if err != nil && len(ligne) == 0 {
+		fmt.Println("\nFin de l'entrée. À bientôt !")
+		os.Exit(0)
+	}
 
-    return n
+	choix, err := strconv.Atoi(strings.TrimSpace(ligne))
+	if err != nil {
+		return -1
+	}
+
+	return choix
 }

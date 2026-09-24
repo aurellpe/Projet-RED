@@ -4,22 +4,51 @@ import (
 	"bufio"
 	"fmt"
 	"main/structure"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
+const (
+	potionVie       = "Potion de vie"
+	potionPoison    = "Potion de poison"
+	potionMana      = "Potion de mana"
+	livreBouleDeFeu = "Livre de Sort : Boule de Feu"
+	augmentationInv = "Augmentation d'inventaire"
+	fourrureYael    = "fourrure de Yael"
+	peauAurelien    = "Peau d'Aurelien"
+	cuirSanglier    = "Cuir de Sanglier"
+	plumeCorbeau    = "Plume de Corbeau"
+	chapeau         = "Chapeau de l'aventurier"
+	tunique         = "Tunique de l'aventurier"
+	bottes          = "Bottes de l'aventurier"
 
-type Character struct {
-	nom                string
-	classe             string
-	niveau             int
-	pointsDeVieMax     int
-	pointsDeVieActuels int
-	inventaire         []string
+	pichenette = "pichenette"
+	sortBouleDeFeu  = "Boule de Feu"
+
+	coutForge = 5
+)
+
+type Spell struct {
+	Nom    string
+	Degats int
+	Mana   int
 }
+
+var grimoire = map[string]Spell{
+	pichenette: {Nom: pichenette, Degats: 8, Mana: 5},
+	sortBouleDeFeu:  {Nom: sortBouleDeFeu, Degats: 18, Mana: 15},
+}
+
+var equipBonus = map[string]int{
+	chapeau: 10,
+	tunique: 25,
+	bottes:  15,
+}
+
+var lecteur = bufio.NewReader(os.Stdin)
 
 func initCharacter(
 	nom string,
@@ -49,6 +78,11 @@ func initCharacter(
 		XPmax:              xpmax,
 		XPactu:             xpactu,
 		Degats:             degats,
+		InventaireMax: 10,
+		Skills:        []string{pichenette},
+		Mana:          50,
+		ManaMax:       50,
+		Initiative:    10,
 	}
 }
 
@@ -66,8 +100,13 @@ func displayInfo(player structure.Character) {
 	fmt.Println("Dégâts :", player.Degats)
 	fmt.Println("Argent :", player.Argent)
 	fmt.Println("Débris :", player.Debris)
+	fmt.Println("Mana :", player.Mana, "/", player.ManaMax)
+	fmt.Println("XP :", player.XPactu, "/", player.XPmax)
+	fmt.Println("Initiative :", player.Initiative)
+	fmt.Println("Sorts :", strings.Join(player.Skills, ", "))
+	fmt.Printf("Équipement : tête [%s] | torse [%s] | pieds [%s]\n",
+		orEmpty(player.Equipement.Tete), orEmpty(player.Equipement.Torse), orEmpty(player.Equipement.Pieds))
 }
-
 
 func pause() {
 
@@ -81,7 +120,7 @@ func accessInventory(player structure.Character) {
 	fmt.Println()
 	fmt.Println("===== INVENTAIRE =====")
 
-	fmt.Printf("Emplacements : %d / 10\n", len(player.Inventaire))
+	fmt.Printf("Emplacements : %d / %d\n", len(player.Inventaire), player.InventaireMax)
 	fmt.Println()
 
 	if len(player.Inventaire) == 0 {
@@ -102,7 +141,6 @@ func accessInventory(player structure.Character) {
 	}
 }
 
-
 func main() {
 
 	player := createCharacter()
@@ -111,37 +149,34 @@ func main() {
 
 	for run {
 
-		menu(&player)
+		run = menu(&player)
 
 	}
 }
 
-func takePot(p structure.Character) {
+func takePot(p *structure.Character) bool {
 
-	for i, it := range p.Inventaire {
-
-		if it.Nom == "potion" && it.Quantity > 0 {
-
-			p.PointsDeVieActuels += 50
-
-			if p.PointsDeVieActuels > p.PointsDeVieMaximum {
-				p.PointsDeVieActuels = p.PointsDeVieMaximum
-			}
-
-			p.Inventaire[i].Quantity--
-
-			if p.Inventaire[i].Quantity == 0 {
-				p.Inventaire = append(
-					p.Inventaire[:i],
-					p.Inventaire[i+1:]...,
-				)
-			}
-
-			return
-		}
+	if countItem(p, potionVie) == 0 {
+		fmt.Println("Vous n'avez pas de potion de vie.")
+		return false
 	}
-}
 
+	if p.PointsDeVieActuels >= p.PointsDeVieMaximum {
+		fmt.Println("Vos PV sont déjà au maximum.")
+		return false
+	}
+
+	removeInventory(p, potionVie)
+
+	p.PointsDeVieActuels += 50
+
+	if p.PointsDeVieActuels > p.PointsDeVieMaximum {
+		p.PointsDeVieActuels = p.PointsDeVieMaximum
+	}
+
+	fmt.Printf("Vous utilisez %s. PV : %d / %d\n", potionVie, p.PointsDeVieActuels, p.PointsDeVieMaximum)
+	return true
+}
 
 func shopMenu(c *structure.Character, scanner *bufio.Scanner) {
 
@@ -177,12 +212,10 @@ func shopMenu(c *structure.Character, scanner *bufio.Scanner) {
 	}
 }
 
-
 func acheterItem(c *structure.Character, nom string) {
 
 	fmt.Println("Vous avez acheté :", nom)
 }
-
 
 type shopItem struct {
 	Nom  string
@@ -191,14 +224,16 @@ type shopItem struct {
 
 var shopItems = []shopItem{
 
-	{Nom: "Potion de vie", Prix: 0},
-	{Nom: "Potion de poison", Prix: 6},
-	{Nom: "Livre de Sort : Boule de Feu", Prix: 25},
-	{Nom: "Fourrure de Loup", Prix: 4},
-	{Nom: "Peau de Troll", Prix: 7},
-	{Nom: "Cuir de vache", Prix: 1},
+	{Nom: potionVie, Prix: 3},
+	{Nom: potionPoison, Prix: 6},
+	{Nom: potionMana, Prix: 5},
+	{Nom: livreBouleDeFeu, Prix: 25},
+	{Nom: fourrureYael, Prix: 4},
+	{Nom: peauAurelien, Prix: 7},
+	{Nom: cuirSanglier, Prix: 3},
+	{Nom: plumeCorbeau, Prix: 1},
+	{Nom: augmentationInv, Prix: 30},
 }
-
 
 func shop(c *structure.Character, reader *bufio.Reader) {
 
@@ -264,7 +299,7 @@ func acheterItemPayant(
 	}) {
 
 		fmt.Println("Votre inventaire est plein !")
-		fmt.Println("Maximum : 10 emplacements.")
+		fmt.Printf("Maximum : %d emplacements.\n", c.InventaireMax)
 
 		return
 	}
@@ -274,24 +309,6 @@ func acheterItemPayant(
 	fmt.Println("Vous avez acheté :", nom)
 	fmt.Println("Argent restant :", c.Argent)
 }
-
-
-func lireChoix(reader *bufio.Reader) int {
-
-	fmt.Print("Choix : ")
-
-	ligne, _ := reader.ReadString('\n')
-	ligne = strings.TrimSpace(ligne)
-
-	choix, err := strconv.Atoi(ligne)
-
-	if err != nil {
-		return -1
-	}
-
-	return choix
-}
-
 
 func gainExperience(c *structure.Character, xpGagne int) {
 
@@ -308,19 +325,23 @@ func gainExperience(c *structure.Character, xpGagne int) {
 
 		levelUp(c)
 	}
-}
 
+	fmt.Printf("XP : %d / %d\n", c.XPactu, c.XPmax)
+}
 
 func levelUp(c *structure.Character) {
 
 	c.Niveau++
 
 	bonusPV := 10
+	bonusMana := 5
 
 	c.PointsDeVieMaximum += bonusPV
 	c.PointsDeVieActuels += bonusPV
+	c.ManaMax += bonusMana
+	c.Mana += bonusMana
 
-	c.XPmax = int(float64(c.XPactu) * 1.2)
+	c.XPmax = int(float64(c.XPmax) * 1.2)
 
 	fmt.Printf(
 		"Niveau supérieur ! Vous êtes maintenant niveau %d.\n",
@@ -328,8 +349,9 @@ func levelUp(c *structure.Character) {
 	)
 
 	fmt.Printf(
-		"Bonus : +%d points de vie maximum.\n",
+		"Bonus : +%d points de vie maximum, +%d mana maximum.\n",
 		bonusPV,
+		bonusMana,
 	)
 
 	fmt.Printf(
@@ -339,302 +361,286 @@ func levelUp(c *structure.Character) {
 	)
 }
 
-func formatName(name string) string {
-	words := strings.Fields(strings.ToLower(name))
-
-	for i, word := range words {
-		runes := []rune(word)
-
-		if len(runes) > 0 {
-			runes[0] = unicode.ToUpper(runes[0])
-			words[i] = string(runes)
-		}
-	}
-
-	return strings.Join(words, " ")
-}
-
-func chooseClass(reader *bufio.Reader) string {
-	for {
-		fmt.Println()
-		fmt.Println("===== CHOIX DE LA CLASSE =====")
-		fmt.Println("1. Humain")
-		fmt.Println("2. Elfe")
-		fmt.Println("3. Nain")
-
-		fmt.Print("Choix : ")
-
-		choix, _ := reader.ReadString('\n')
-		choix = strings.TrimSpace(choix)
-
-		switch choix {
-		case "1":
-			return "Humain"
-		case "2":
-			return "Elfe"
-		case "3":
-			return "Nain"
-		default:
-			fmt.Println("Choix invalide. Choisissez 1, 2 ou 3.")
-		}
-	}
-}
-
-
 func createCharacter() structure.Character {
-
-	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("===== CRÉATION DU PERSONNAGE =====")
 
-	fmt.Print("Nom : ")
-	nom, _ := reader.ReadString('\n')
-	nom = formatName(strings.TrimSpace(nom))
+	nom := lireNomValide("Nom")
+	prenom := lireNomValide("Prénom")
 
-	fmt.Print("Prénom : ")
-	prenom, _ := reader.ReadString('\n')
-	prenom = formatName(strings.TrimSpace(prenom))
-
-	fmt.Print("Âge : ")
-	ageStr, _ := reader.ReadString('\n')
-	ageStr = strings.TrimSpace(ageStr)
-
-	age, _ := strconv.Atoi(ageStr)
-
-	classe := chooseClass(reader)
-
-	niveau := 1
-
-	var pvMax int
-
-	switch classe {
-	case "Humain":
-		pvMax = 100
-	case "Elfe":
-		pvMax = 80
-	case "Nain":
-		pvMax = 120
+	age := 0
+	for age <= 0 {
+		fmt.Print("Âge : ")
+		ligne, _ := lecteur.ReadString('\n')
+		a, err := strconv.Atoi(strings.TrimSpace(ligne))
+		if err == nil && a > 0 {
+			age = a
+		} else {
+			fmt.Println("Âge invalide.")
+		}
 	}
 
-	pvActu := pvMax / 2
+	classe := ""
+	pvMax := 0
+	initiative := 0
 
-	inventaire := []structure.Item{}
+	for classe == "" {
+		fmt.Println("Classe :")
+		fmt.Println("1. Humain (100 PV max)")
+		fmt.Println("2. ogre   (80 PV max)")
+		fmt.Println("3. chevalier   (120 PV max)")
 
-	argent := 100
-	xpmax := 100
-	xpactu := 0
+		switch lireEntier() {
+		case 1:
+			classe, pvMax, initiative = "Humain", 100, 10
+		case 2:
+			classe, pvMax, initiative = "ogre", 80, 12
+		case 3:
+			classe, pvMax, initiative = "chevalier", 120, 8
+		default:
+			fmt.Println("Choix invalide.")
+		}
+	}
 
-	degats := 10
+	inventaire := []structure.Item{{Nom: potionVie, Quantity: 3}}
 
-	return initCharacter(
+	p := initCharacter(
 		nom,
 		prenom,
 		age,
 		classe,
-		niveau,
+		1,
 		pvMax,
-		pvActu,
+		pvMax/2,
 		inventaire,
-		argent,
-		xpmax,
-		xpactu,
-		degats,
+		100, 
+		100, 
+		0,
+		5, 
 	)
+
+	p.Initiative = initiative
+
+	return p
 }
 
+func formatName(s string) string {
+	r := []rune(strings.ToLower(s))
+	if len(r) == 0 {
+		return s
+	}
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
+}
 
-func convertToCombatCharacter(
-	p structure.Character,
-) Character {
+func validName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
+}
 
-	return Character{
-		nom:                p.Nom,
-		classe:             p.Classe,
-		niveau:             p.Niveau,
-		pointsDeVieMax:     p.PointsDeVieMaximum,
-		pointsDeVieActuels: p.PointsDeVieActuels,
-		inventaire:         []string{"Potion de vie"},
+func lireNomValide(label string) string {
+	for {
+		fmt.Printf("%s (lettres uniquement) : ", label)
+		ligne, _ := lecteur.ReadString('\n')
+		ligne = strings.TrimSpace(ligne)
+		if validName(ligne) {
+			return formatName(ligne)
+		}
+		fmt.Println("Invalide : uniquement des lettres (sans espace ni chiffre).")
 	}
 }
 
-
-func trainingFightCommand(player *structure.Character) {
-
-    fmt.Println("\nUn gobelin apparaît !")
-
-    goblinPV := 100
-    goblinAtk := 25
-
-    for {
-
-        fmt.Println("\n=== Combat ===")
-        fmt.Printf("Gobelin : %d PV\n", goblinPV)
-        fmt.Printf("%s : %d/%d PV\n", player.Nom, player.PointsDeVieActuels, player.PointsDeVieMaximum)
-
-        fmt.Println("1 - Attaquer")
-        fmt.Println("2 - Utiliser une potion")
-        fmt.Println("3 - Défendre")
-        fmt.Println("4 - Utiliser un sort")
-        fmt.Println("0 - Fuir")
-
-        choix := lireEntier()
-        defended := false
-
-        switch choix {
-
-        case 1:
-            goblinPV -= player.Degats
-            fmt.Printf("Vous infligez %d dégâts au gobelin.\n", player.Degats)
-
-        case 2:
-            aPotionVie := false
-            aPotionPoison := false
-
-            // Vérifier les potions disponibles
-            for _, it := range player.Inventaire {
-                if it.Nom == "Potion de vie" && it.Quantity > 0 {
-                    aPotionVie = true
-                }
-                if it.Nom == "Potion de poison" && it.Quantity > 0 {
-                    aPotionPoison = true
-                }
-            }
-
-            if !aPotionVie && !aPotionPoison {
-                fmt.Println("Vous n'avez aucune potion à utiliser.")
-                break
-            }
-
-            fmt.Println("\n=== Choisissez une potion ===")
-            if aPotionVie {
-                fmt.Println("1 - Potion de vie (+50 PV)")
-            }
-            if aPotionPoison {
-                fmt.Println("2 - Potion de poison (20 dégâts au gobelin)")
-            }
-            fmt.Println("0 - Annuler")
-
-            choixPotion := lireEntier()
-
-            switch choixPotion {
-
-            case 1:
-                if !aPotionVie {
-                    fmt.Println("Vous n'avez pas de potion de vie.")
-                    break
-                }
-
-                for i, it := range player.Inventaire {
-                    if it.Nom == "Potion de vie" && it.Quantity > 0 {
-
-                        fmt.Println("Vous utilisez une Potion de vie ! +50 PV")
-                        player.PointsDeVieActuels += 50
-
-                        if player.PointsDeVieActuels > player.PointsDeVieMaximum {
-                            player.PointsDeVieActuels = player.PointsDeVieMaximum
-                        }
-
-                        player.Inventaire[i].Quantity--
-                        if player.Inventaire[i].Quantity == 0 {
-                            player.Inventaire = append(player.Inventaire[:i], player.Inventaire[i+1:]...)
-                        }
-
-                        break
-                    }
-                }
-
-            case 2:
-                if !aPotionPoison {
-                    fmt.Println("Vous n'avez pas de potion de poison.")
-                    break
-                }
-
-                for i, it := range player.Inventaire {
-                    if it.Nom == "Potion de poison" && it.Quantity > 0 {
-
-                        fmt.Println("Vous utilisez une Potion de poison ! Le gobelin subit 20 dégâts.")
-                        goblinPV -= 20
-
-                        player.Inventaire[i].Quantity--
-                        if player.Inventaire[i].Quantity == 0 {
-                            player.Inventaire = append(player.Inventaire[:i], player.Inventaire[i+1:]...)
-                        }
-
-                        break
-                    }
-                }
-
-            case 0:
-                fmt.Println("Vous annulez.")
-                break
-
-            default:
-                fmt.Println("Choix invalide.")
-            }
-
-        case 3:
-            fmt.Println("Vous vous mettez en position défensive !")
-            defended = true
-
-        case 4:
-            sortUtilise := false
-
-            for i, it := range player.Inventaire {
-                if it.Nom == "Livre de Sort : Boule de Feu" && it.Quantity > 0 {
-
-                    fmt.Println("Vous lancez Boule de Feu ! Le gobelin subit 40 dégâts.")
-                    goblinPV -= 40
-
-                    player.Inventaire[i].Quantity--
-                    if player.Inventaire[i].Quantity == 0 {
-                        player.Inventaire = append(player.Inventaire[:i], player.Inventaire[i+1:]...)
-                    }
-
-                    sortUtilise = true
-                    break
-                }
-            }
-
-            if !sortUtilise {
-                fmt.Println("Vous n'avez aucun sort à utiliser.")
-            }
-
-        case 0:
-            fmt.Println("Vous fuyez le combat.")
-            return
-
-        default:
-            fmt.Println("Choix invalide.")
-        }
-
-        if goblinPV <= 0 {
-	fmt.Println("Vous avez vaincu le gobelin !")
-
-	debrisGagnes := rand.Intn(6) + 3 
-	orGagne := rand.Intn(11) + 5     
-
-	player.Debris += debrisGagnes
-	player.Argent += orGagne
-
-	fmt.Printf("Vous récupérez %d débris !\n", debrisGagnes)
-	fmt.Printf("Vous récupérez %d pièces d'or !\n", orGagne)
-	fmt.Printf("Argent total : %d pièces d'or\n", player.Argent)
-	fmt.Printf("Débris totaux : %d\n", player.Debris)
-
-	return
+func orEmpty(s string) string {
+	if s == "" {
+		return "vide"
+	}
+	return s
 }
 
-        if defended {
-            fmt.Println("Vous bloquez complètement l'attaque du gobelin ! 0 dégâts.")
-        } else {
-            player.PointsDeVieActuels -= goblinAtk
-            fmt.Printf("Le gobelin vous inflige %d dégâts.\n", goblinAtk)
-        }
+func countItem(p *structure.Character, nom string) int {
+	for _, it := range p.Inventaire {
+		if it.Nom == nom {
+			return it.Quantity
+		}
+	}
+	return 0
+}
 
-        if player.PointsDeVieActuels <= 0 {
-            fmt.Println("Vous êtes mort... Réanimation à 50% PV.")
-            player.PointsDeVieActuels = player.PointsDeVieMaximum / 2
-            return
-        }
-    }
+func removeInventory(p *structure.Character, nom string) bool {
+	for i := range p.Inventaire {
+		if p.Inventaire[i].Nom == nom && p.Inventaire[i].Quantity > 0 {
+			p.Inventaire[i].Quantity--
+			if p.Inventaire[i].Quantity == 0 {
+				p.Inventaire = append(p.Inventaire[:i], p.Inventaire[i+1:]...)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func poisonPot(nom string, pv *int, pvMax int) {
+	for i := 0; i < 3; i++ {
+		time.Sleep(1 * time.Second)
+		*pv -= 10
+		if *pv < 0 {
+			*pv = 0
+		}
+		fmt.Printf("Poison : %s subit 10 dégâts. PV : %d / %d\n", nom, *pv, pvMax)
+		if *pv == 0 {
+			break
+		}
+	}
+}
+
+func takeManaPot(p *structure.Character) bool {
+	if p.Mana >= p.ManaMax {
+		fmt.Println("Votre mana est déjà au maximum.")
+		return false
+	}
+	removeInventory(p, potionMana)
+	p.Mana += 30
+	if p.Mana > p.ManaMax {
+		p.Mana = p.ManaMax
+	}
+	fmt.Printf("Vous utilisez %s. Mana : %d / %d\n", potionMana, p.Mana, p.ManaMax)
+	return true
+}
+
+func knowsSpell(p *structure.Character, sort string) bool {
+	for _, s := range p.Skills {
+		if s == sort {
+			return true
+		}
+	}
+	return false
+}
+
+func spellBook(p *structure.Character) bool {
+	if knowsSpell(p, sortBouleDeFeu) {
+		fmt.Println("Vous connaissez déjà le sort Boule de Feu.")
+		return false
+	}
+	removeInventory(p, livreBouleDeFeu)
+	p.Skills = append(p.Skills, sortBouleDeFeu)
+	fmt.Println("Vous apprenez le sort : Boule de Feu !")
+	return true
+}
+
+func upgradeInventorySlot(p *structure.Character) bool {
+	if p.Ameliorations >= 3 {
+		fmt.Println("Vous avez déjà utilisé les 3 augmentations d'inventaire possibles.")
+		return false
+	}
+	removeInventory(p, augmentationInv)
+	p.Ameliorations++
+	p.InventaireMax += 10
+	fmt.Printf("Capacité de l'inventaire : %d (%d / 3 améliorations)\n", p.InventaireMax, p.Ameliorations)
+	return true
+}
+
+func equip(p *structure.Character, nom string) bool {
+	var slot *string
+	switch nom {
+	case chapeau:
+		slot = &p.Equipement.Tete
+	case tunique:
+		slot = &p.Equipement.Torse
+	case bottes:
+		slot = &p.Equipement.Pieds
+	default:
+		return false
+	}
+
+	ancien := *slot
+	removeInventory(p, nom)
+
+	if ancien != "" {
+		if !p.AddInventory(structure.Item{Nom: ancien, Quantity: 1}) {
+			p.AddInventory(structure.Item{Nom: nom, Quantity: 1})
+			fmt.Println("Inventaire plein, impossible de retirer l'ancien équipement.")
+			return false
+		}
+		p.PointsDeVieMaximum -= equipBonus[ancien]
+		fmt.Printf("Vous retirez %s (remis dans l'inventaire).\n", ancien)
+	}
+
+	*slot = nom
+	p.PointsDeVieMaximum += equipBonus[nom]
+	if p.PointsDeVieActuels > p.PointsDeVieMaximum {
+		p.PointsDeVieActuels = p.PointsDeVieMaximum
+	}
+	fmt.Printf("Vous équipez %s (+%d PV max). PV : %d / %d\n", nom, equipBonus[nom],
+		p.PointsDeVieActuels, p.PointsDeVieMaximum)
+	return true
+}
+
+func useItem(p *structure.Character, nom string, m *Monster) bool {
+	switch nom {
+	case potionVie:
+		return takePot(p)
+	case potionMana:
+		return takeManaPot(p)
+	case potionPoison:
+		removeInventory(p, potionPoison)
+		if m != nil {
+			fmt.Printf("Vous lancez %s sur %s !\n", potionPoison, m.Nom)
+			poisonPot(m.Nom, &m.PV, m.PVMax)
+		} else {
+			fmt.Println("Vous buvez la potion de poison")
+			poisonPot(p.Nom, &p.PointsDeVieActuels, p.PointsDeVieMaximum)
+			isDead(p)
+		}
+		return true
+	case livreBouleDeFeu:
+		return spellBook(p)
+	case augmentationInv:
+		return upgradeInventorySlot(p)
+	case chapeau, tunique, bottes:
+		return equip(p, nom)
+	default:
+		fmt.Printf("%s n'est pas utilisable (matériau de fabrication).\n", nom)
+		return false
+	}
+}
+
+func inventoryMenu(p *structure.Character, m *Monster) bool {
+	for {
+		accessInventory(*p)
+
+		if len(p.Inventaire) == 0 {
+			return false
+		}
+
+		fmt.Println("\nTapez le numéro d'un objet pour l'utiliser, 0 pour revenir.")
+		choix := lireEntier()
+
+		if choix == 0 {
+			return false
+		}
+		if choix < 1 || choix > len(p.Inventaire) {
+			fmt.Println("Choix invalide.")
+			continue
+		}
+
+		nom := p.Inventaire[choix-1].Nom
+		if useItem(p, nom, m) && m != nil {
+			return true
+		}
+	}
+}
+
+// ===================== AJOUT : menu principal =====================
+
+func whoAreThey() {
+	fmt.Println("\n===== Qui sont-ils ? =====")
+	fmt.Println("Partie 2 (économie) : ABBA")
+	fmt.Println("Partie 3 (combat)   : Steven Spielberg")
 }
