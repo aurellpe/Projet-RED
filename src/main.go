@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"main/structure"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 
@@ -337,6 +339,47 @@ func levelUp(c *structure.Character) {
 	)
 }
 
+func formatName(name string) string {
+	words := strings.Fields(strings.ToLower(name))
+
+	for i, word := range words {
+		runes := []rune(word)
+
+		if len(runes) > 0 {
+			runes[0] = unicode.ToUpper(runes[0])
+			words[i] = string(runes)
+		}
+	}
+
+	return strings.Join(words, " ")
+}
+
+func chooseClass(reader *bufio.Reader) string {
+	for {
+		fmt.Println()
+		fmt.Println("===== CHOIX DE LA CLASSE =====")
+		fmt.Println("1. Humain")
+		fmt.Println("2. Elfe")
+		fmt.Println("3. Nain")
+
+		fmt.Print("Choix : ")
+
+		choix, _ := reader.ReadString('\n')
+		choix = strings.TrimSpace(choix)
+
+		switch choix {
+		case "1":
+			return "Humain"
+		case "2":
+			return "Elfe"
+		case "3":
+			return "Nain"
+		default:
+			fmt.Println("Choix invalide. Choisissez 1, 2 ou 3.")
+		}
+	}
+}
+
 
 func createCharacter() structure.Character {
 
@@ -345,36 +388,40 @@ func createCharacter() structure.Character {
 	fmt.Println("===== CRÉATION DU PERSONNAGE =====")
 
 	fmt.Print("Nom : ")
-
 	nom, _ := reader.ReadString('\n')
-	nom = strings.TrimSpace(nom)
+	nom = formatName(strings.TrimSpace(nom))
 
 	fmt.Print("Prénom : ")
-
 	prenom, _ := reader.ReadString('\n')
-	prenom = strings.TrimSpace(prenom)
+	prenom = formatName(strings.TrimSpace(prenom))
 
 	fmt.Print("Âge : ")
-
 	ageStr, _ := reader.ReadString('\n')
 	ageStr = strings.TrimSpace(ageStr)
 
 	age, _ := strconv.Atoi(ageStr)
 
-	fmt.Print("Classe : ")
-
-	classe, _ := reader.ReadString('\n')
-	classe = strings.TrimSpace(classe)
+	classe := chooseClass(reader)
 
 	niveau := 1
-	pvMax := 1000
-	pvActu := 100
+
+	var pvMax int
+
+	switch classe {
+	case "Humain":
+		pvMax = 100
+	case "Elfe":
+		pvMax = 80
+	case "Nain":
+		pvMax = 120
+	}
+
+	pvActu := pvMax / 2
 
 	inventaire := []structure.Item{}
 
-	argent := 1000
-
-	xpmax := 10000
+	argent := 100
+	xpmax := 100
 	xpactu := 0
 
 	degats := 10
@@ -561,9 +608,21 @@ func trainingFightCommand(player *structure.Character) {
         }
 
         if goblinPV <= 0 {
-            fmt.Println("Vous avez vaincu le gobelin !")
-            return
-        }
+	fmt.Println("Vous avez vaincu le gobelin !")
+
+	debrisGagnes := rand.Intn(6) + 3 
+	orGagne := rand.Intn(11) + 5     
+
+	player.Debris += debrisGagnes
+	player.Argent += orGagne
+
+	fmt.Printf("Vous récupérez %d débris !\n", debrisGagnes)
+	fmt.Printf("Vous récupérez %d pièces d'or !\n", orGagne)
+	fmt.Printf("Argent total : %d pièces d'or\n", player.Argent)
+	fmt.Printf("Débris totaux : %d\n", player.Debris)
+
+	return
+}
 
         if defended {
             fmt.Println("Vous bloquez complètement l'attaque du gobelin ! 0 dégâts.")
