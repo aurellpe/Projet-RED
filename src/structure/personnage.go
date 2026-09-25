@@ -5,6 +5,12 @@ type Item struct {
 	Quantity int
 }
 
+type Equipment struct {
+	Tete  string
+	Torse string
+	Pieds string
+}
+
 type Character struct {
 	Nom                string
 	Prenom             string
@@ -29,14 +35,7 @@ type Character struct {
 	Arme               string
 }
 
-type Equipment struct {
-	Tete  string
-	Torse string
-	Pieds string
-}
-
 func (p *Character) AddInventory(item Item) bool {
-
 	for i := range p.Inventaire {
 		if p.Inventaire[i].Nom == item.Nom {
 			p.Inventaire[i].Quantity += item.Quantity
@@ -53,6 +52,5 @@ func (p *Character) AddInventory(item Item) bool {
 	}
 
 	p.Inventaire = append(p.Inventaire, item)
-
 	return true
 }

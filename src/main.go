@@ -178,39 +178,6 @@ func takePot(p *structure.Character) bool {
 	return true
 }
 
-func shopMenu(c *structure.Character, scanner *bufio.Scanner) {
-
-	for {
-
-		fmt.Println("\n===== Marchand =====")
-		fmt.Println("1. Potion de vie")
-		fmt.Println("2. Fourrure de Brice")
-		fmt.Println("3. Casque de Guigui")
-		fmt.Println("0. Retour")
-
-		scanner.Scan()
-
-		choix := scanner.Text()
-
-		switch choix {
-
-		case "1":
-			acheterItem(c, "Potion de vie")
-
-		case "2":
-			acheterItem(c, "Fourrure de Brice")
-
-		case "3":
-			acheterItem(c, "Casque de Guigui")
-
-		case "0":
-			return
-
-		default:
-			fmt.Println("Choix invalide.")
-		}
-	}
-}
 
 func acheterItem(c *structure.Character, nom string) {
 
@@ -636,8 +603,6 @@ func inventoryMenu(p *structure.Character, m *Monster) bool {
 		}
 	}
 }
-
-// ===================== AJOUT : menu principal =====================
 
 func whoAreThey() {
 	fmt.Println("\n===== Qui sont-ils ? =====")
